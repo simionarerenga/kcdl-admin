@@ -119,66 +119,63 @@ export default function Dashboard({ onNavigate }) {
         <StatCard icon="📅" value={fmt.kg(todayWeight)} label="Today's CPR Weight" accent="var(--gold)" sub={`${todayCPR.length} sessions`} />
       </div>
 
-      {/* Two-column content */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-        {/* Weight by island */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">⚖️ Weight by Island</div>
-              <div className="card-subtitle">CPR cumulative totals</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('analytics')} type="button">View All →</button>
+      {/* Weight by Island — full width */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header">
+          <div>
+            <div className="card-title">⚖️ Weight by Island</div>
+            <div className="card-subtitle">CPR cumulative totals</div>
           </div>
-          <div className="mini-bar-wrap">
-            {islandWeights.slice(0, 8).map((row, i) => (
-              <MiniBar
-                key={row.island}
-                label={row.island}
-                value={row.weight}
-                max={maxIslandWeight}
-                color={['var(--teal)', 'var(--gold)', 'var(--purple)', 'var(--green)', 'var(--amber)'][i % 5]}
-              />
-            ))}
-            {islandWeights.length === 0 && <div className="empty-state" style={{ padding: 20 }}><div className="empty-state-text">No data yet</div></div>}
-          </div>
+          <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('analytics')} type="button">View All →</button>
         </div>
+        <div className="mini-bar-wrap">
+          {islandWeights.slice(0, 8).map((row, i) => (
+            <MiniBar
+              key={row.island}
+              label={row.island}
+              value={row.weight}
+              max={maxIslandWeight}
+              color={['var(--teal)', 'var(--gold)', 'var(--purple)', 'var(--green)', 'var(--amber)'][i % 5]}
+            />
+          ))}
+          {islandWeights.length === 0 && <div className="empty-state" style={{ padding: 20 }}><div className="empty-state-text">No data yet</div></div>}
+        </div>
+      </div>
 
-        {/* Stock status breakdown */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">📦 Bag Stock Status</div>
-              <div className="card-subtitle">All stations combined</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('shedstock')} type="button">View All →</button>
+      {/* Bag Stock Status — full width */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header">
+          <div>
+            <div className="card-title">📦 Bag Stock Status</div>
+            <div className="card-subtitle">All stations combined</div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
-            {[
-              { label: 'Recently Weighed', items: stock.filter(s => s.status === 'recently_weighed'), color: 'var(--amber)' },
-              { label: 'In Shed',          items: inShed,       color: 'var(--teal)' },
-              { label: 'In Warehouse',     items: inWarehouse,  color: 'var(--purple)' },
-              { label: 'Ready to Ship',    items: readyToShip,  color: 'var(--green)' },
-            ].map(row => (
-              <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 10, height: 10, borderRadius: 3, background: row.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{row.label}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {row.items.length} bags
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
-                  {fmt.kg(sumField(row.items, 'stationWeight'))}
-                </div>
+          <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('shedstock')} type="button">View All →</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}>
+          {[
+            { label: 'Recently Weighed', items: stock.filter(s => s.status === 'recently_weighed'), color: 'var(--amber)' },
+            { label: 'In Shed',          items: inShed,       color: 'var(--teal)' },
+            { label: 'In Warehouse',     items: inWarehouse,  color: 'var(--purple)' },
+            { label: 'Ready to Ship',    items: readyToShip,  color: 'var(--green)' },
+          ].map(row => (
+            <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: row.color, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{row.label}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                {row.items.length} bags
               </div>
-            ))}
-          </div>
-          <div className="divider" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Total bags</span>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 700 }}>
-              {stock.length} · {fmt.kg(sumField(stock, 'stationWeight'))}
-            </span>
-          </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)', minWidth: 90, textAlign: 'right' }}>
+                {fmt.kg(sumField(row.items, 'stationWeight'))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="divider" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Total bags</span>
+          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 700 }}>
+            {stock.length} · {fmt.kg(sumField(stock, 'stationWeight'))}
+          </span>
         </div>
       </div>
 
@@ -207,7 +204,7 @@ export default function Dashboard({ onNavigate }) {
               {recentCPRs.map(r => (
                 <tr key={r.id}>
                   <td className="tbl-mono">{fmt.date(r.date)}</td>
-                  <td className="tbl-mono" style={{ color: 'var(--teal-light)' }}>{r.cpr_number || '—'}</td>
+                  <td className="tbl-mono" style={{ color: 'var(--teal)' }}>{r.cpr_number || '—'}</td>
                   <td>{r.island || '—'}</td>
                   <td>{r.cooperative_name || '—'}</td>
                   <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{r.inspectorEmail || r.copra_inspector_name || '—'}</td>
