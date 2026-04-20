@@ -192,7 +192,7 @@ export default function App() {
   if (user === undefined) {
     return (
       <div className="splash-screen">
-        <img src="./img/icon_bg.png" alt="KCDL" className="splash-logo"
+        <img src="./icon_bg.png" alt="KCDL" className="splash-logo"
           onError={e => { e.target.style.display = 'none'; }} />
         <p className="splash-text">KCDL Admin · Loading…</p>
       </div>
