@@ -27,7 +27,7 @@ export default function TopBar({ sectionMeta, onGoHome, onSignOut, email }) {
           /* Home screen title */
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <img
-              src="./img/icon_bg.png"
+              src="./icon_bg.png"
               alt="KCDL"
               style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }}
               onError={e => { e.target.style.display = 'none'; }}
