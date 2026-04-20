@@ -1,32 +1,40 @@
 // src/components/TopBar.jsx
-const TITLES = {
-  dashboard:  'Dashboard',
-  activity:   'Live Activity',
-  cpr:        'CPR Records',
-  twc:        'TWC Records',
-  shedstock:  'Shed & Warehouse',
-  shipments:  'Shipments',
-  farmers:    'Farmers Registry',
-  reports:    'Reports Centre',
-  analytics:  'Analytics',
-  stations:   'Stations',
-  users:      'User Management',
-  settings:   'Settings',
-};
-
-export default function TopBar({ section, onToggleSidebar, onSignOut, email }) {
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-GB', {
+export default function TopBar({ sectionMeta, onGoHome, onSignOut, email }) {
+  const dateStr = new Date().toLocaleDateString('en-GB', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   });
 
   return (
     <div className="topbar">
       <div className="topbar-left">
-        <button className="topbar-toggle" onClick={onToggleSidebar} type="button" title="Toggle sidebar">
-          ☰
-        </button>
-        <span className="topbar-title">{TITLES[section] || 'KCDL Admin'}</span>
+        {sectionMeta ? (
+          /* Breadcrumb when inside a section */
+          <div className="breadcrumb" style={{ margin: 0 }}>
+            <button
+              type="button"
+              className="topbar-toggle"
+              onClick={onGoHome}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: '0.88rem', fontWeight: 600 }}
+            >
+              🏠 Home
+            </button>
+            <span className="breadcrumb-sep">›</span>
+            <span className="breadcrumb-current" style={{ fontSize: '0.95rem' }}>
+              {sectionMeta.icon} {sectionMeta.label}
+            </span>
+          </div>
+        ) : (
+          /* Home screen title */
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img
+              src="./img/icon_bg.png"
+              alt="KCDL"
+              style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }}
+              onError={e => { e.target.style.display = 'none'; }}
+            />
+            <span className="topbar-title">KCDL Admin</span>
+          </div>
+        )}
       </div>
 
       <div className="topbar-right">
