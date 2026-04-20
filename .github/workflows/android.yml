@@ -54,37 +54,95 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
-      - name: Install launcher icons
-        run: |
-          sudo apt-get install -y imagemagick > /dev/null 2>&1
-          ICON_SRC="android/app/src/main/res"
-          ICON_FILE="public/img/icon_bg.png"
+      - name: Install ImageMagick
+        run: sudo apt-get install -y imagemagick > /dev/null 2>&1
 
-          # Create a fallback icon if the source file is missing
-          if [ ! -f "$ICON_FILE" ]; then
-            echo "⚠ $ICON_FILE not found — generating placeholder icon"
-            mkdir -p "$(dirname "$ICON_FILE")"
-            convert -size 1024x1024 xc:#2563EB \
-              -fill white -font DejaVu-Sans-Bold -pointsize 400 \
-              -gravity Center -annotate 0 "K" \
-              "$ICON_FILE"
-            echo "✓ Placeholder icon created"
-          fi
+      # ── Launcher icons ──────────────────────────────────────────────
+      # Uses icon_launcher.jpg (light blue background) — square & round
+      - name: Generate launcher icons
+        run: |
+          ICON_SRC="android/app/src/main/res"
+          LAUNCHER="public/icon_launcher.jpg"
 
           for entry in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
             dir="${entry%%:*}"
             px="${entry##*:}"
             mkdir -p "$ICON_SRC/mipmap-$dir"
-            convert "$ICON_FILE" -resize "${px}x${px}" \
+
+            # Square launcher icon
+            convert "$LAUNCHER" -resize "${px}x${px}!" \
               "$ICON_SRC/mipmap-$dir/ic_launcher.png"
-            cp "$ICON_SRC/mipmap-$dir/ic_launcher.png" \
-               "$ICON_SRC/mipmap-$dir/ic_launcher_round.png"
-            echo "✓ $dir ${px}x${px}"
+
+            # Round launcher icon (circle-cropped, transparent bg)
+            convert "$LAUNCHER" -resize "${px}x${px}!" \
+              \( +clone -alpha extract \
+                 -draw "fill black rectangle 0,0 ${px},${px} \
+                        fill white circle $((px/2)),$((px/2)) $((px/2)),1" \) \
+              -alpha off -compose multiply -composite \
+              -background none \
+              "$ICON_SRC/mipmap-$dir/ic_launcher_round.png"
+
+            echo "✓ $dir  ${px}×${px}"
           done
 
-          # Remove adaptive icon XMLs (overrides PNGs on Android 8+)
+          # Remove adaptive icon XMLs so PNGs take effect on Android 8+
           rm -rf "$ICON_SRC/mipmap-anydpi-v26"
           echo "✓ Adaptive icon XMLs removed"
+
+      # ── Splash screens ──────────────────────────────────────────────
+      # Uses icon_bg.png (white background logo) centered on white canvas
+      - name: Generate splash screens
+        run: |
+          RES="android/app/src/main/res"
+          LOGO="public/icon_bg.png"
+
+          # Portrait sizes: folder → WxH  logo-size
+          declare -A PORT=(
+            ["drawable-port-mdpi"]="320x480:180"
+            ["drawable-port-hdpi"]="480x800:260"
+            ["drawable-port-xhdpi"]="720x1280:400"
+            ["drawable-port-xxhdpi"]="960x1600:520"
+            ["drawable-port-xxxhdpi"]="1280x1920:680"
+          )
+
+          # Landscape sizes
+          declare -A LAND=(
+            ["drawable-land-mdpi"]="480x320:180"
+            ["drawable-land-hdpi"]="800x480:260"
+            ["drawable-land-xhdpi"]="1280x720:400"
+            ["drawable-land-xxhdpi"]="1600x960:520"
+            ["drawable-land-xxxhdpi"]="1920x1280:680"
+          )
+
+          for folder in "${!PORT[@]}"; do
+            dims="${PORT[$folder]%%:*}"
+            logo_px="${PORT[$folder]##*:}"
+            mkdir -p "$RES/$folder"
+            convert -size "$dims" xc:white \
+              \( "$LOGO" -resize "${logo_px}x${logo_px}" \) \
+              -gravity center -composite \
+              "$RES/$folder/splash.png"
+            echo "✓ $folder  $dims"
+          done
+
+          for folder in "${!LAND[@]}"; do
+            dims="${LAND[$folder]%%:*}"
+            logo_px="${LAND[$folder]##*:}"
+            mkdir -p "$RES/$folder"
+            convert -size "$dims" xc:white \
+              \( "$LOGO" -resize "${logo_px}x${logo_px}" \) \
+              -gravity center -composite \
+              "$RES/$folder/splash.png"
+            echo "✓ $folder  $dims"
+          done
+
+          # Default drawable fallback
+          mkdir -p "$RES/drawable"
+          convert -size 1080x1920 xc:white \
+            \( "$LOGO" -resize 700x700 \) \
+            -gravity center -composite \
+            "$RES/drawable/splash.png"
+          echo "✓ drawable/splash.png (default)"
 
       - name: Write android/local.properties
         run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
