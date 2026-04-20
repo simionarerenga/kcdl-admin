@@ -35,7 +35,7 @@ export default function LoginScreen() {
 
       <div className="login-card">
         <div className="login-header">
-          <img src="./img/icon_bg.png" alt="KCDL" className="login-logo"
+          <img src="./icon_bg.png" alt="KCDL" className="login-logo"
             onError={e => { e.target.style.display='none'; }} />
           <div className="login-title">KCDL Admin</div>
           <div className="login-sub">
