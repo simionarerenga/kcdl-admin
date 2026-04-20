@@ -1,5 +1,4 @@
-import { CapacitorConfig } from '@capacitor/cli';
-
+/** @type {import('@capacitor/cli').CapacitorConfig} */
 const config = {
   appId: 'com.kcdl.admin',
   appName: 'KCDL Admin',
@@ -10,4 +9,4 @@ const config = {
   },
 };
 
-export default config;
+module.exports = config;
