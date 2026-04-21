@@ -74,16 +74,211 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 10px 0 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  z-index: 10;
+  z-index: 100;
+  gap: 8px;
 }
 
-.topbar-left  { display: flex; align-items: center; gap: 14px; }
-.topbar-right { display: flex; align-items: center; gap: 10px; }
+.topbar-left  { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
+/* Logo — 95% of topbar height */
+.topbar-logo {
+  height: calc(var(--topbar-h) * 0.95);
+  width:  calc(var(--topbar-h) * 0.95);
+  object-fit: contain;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* App name button */
+.topbar-appname {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--teal);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.topbar-appname:hover { color: var(--teal-light); }
+
+/* Hamburger button */
+.hamburger-wrap {
+  position: relative;
+}
+
+.hamburger-btn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 38px;
+  height: 38px;
+}
+
+.hamburger-btn:hover { background: var(--teal-dim); border-color: var(--teal); }
+
+.hamburger-line {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--text-secondary);
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.hamburger-btn:hover .hamburger-line { background: var(--teal); }
+
+/* Dropdown */
+.hamburger-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-mid);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.hd-group { border-bottom: 1px solid var(--border); }
+.hd-group:last-child { border-bottom: none; }
+
+.hd-category {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-head);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.hd-category:hover { background: var(--bg); color: var(--teal); }
+
+.hd-chevron {
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+  display: inline-block;
+  line-height: 1;
+}
+
+.hd-chevron.open { transform: rotate(90deg); }
+
+.hd-items { background: var(--bg); }
+
+.hd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: left;
+  transition: all 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+
+.hd-item:last-child { border-bottom: none; }
+.hd-item:hover { background: var(--teal-dim); color: var(--teal); }
+
+.hd-item-icon { font-size: 1rem; flex-shrink: 0; width: 20px; text-align: center; }
+
+/* Topbar breadcrumb (right side, when in a section) */
+.topbar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.topbar-home-btn {
+  background: none;
+  border: none;
+  color: var(--teal);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.topbar-home-btn:hover { text-decoration: underline; }
+
+.breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  white-space: nowrap;
+}
+
+.topbar-badge {
+  background: var(--teal-dim);
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(0,124,145,0.22);
+  letter-spacing: 0.4px;
+}
+
+.topbar-btn {
+  background: none;
+  border: 1px solid var(--border-mid);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.topbar-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+.topbar-date {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Legacy — keep for any section that references .topbar-toggle */
 .topbar-toggle {
   background: none;
   border: none;
@@ -106,37 +301,6 @@ html, body, #root {
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
-}
-
-.topbar-badge {
-  background: var(--teal-dim);
-  color: var(--teal);
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 99px;
-  border: 1px solid rgba(0,124,145,0.22);
-  letter-spacing: 0.4px;
-}
-
-.topbar-btn {
-  background: none;
-  border: 1px solid var(--border-mid);
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  transition: all 0.15s;
-}
-
-.topbar-btn:hover { border-color: var(--teal); color: var(--teal); }
-
-.topbar-date {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
 }
 
 /* ── Page body ── */
