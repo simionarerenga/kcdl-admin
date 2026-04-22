@@ -502,6 +502,21 @@ html, body, #root {
 
 .stat-card:hover { box-shadow: var(--shadow-md); }
 
+.stat-card-btn {
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+}
+
+.stat-card-btn:hover {
+  border-color: var(--teal);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-card-btn:active { transform: translateY(0); }
+
 .stat-icon  { font-size: 1.4rem; margin-bottom: 8px; }
 .stat-value { font-family: var(--font-head); font-size: 1.6rem; font-weight: 800; color: var(--text-primary); line-height: 1; margin-bottom: 4px; }
 .stat-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
