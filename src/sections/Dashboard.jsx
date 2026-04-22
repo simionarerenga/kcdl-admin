@@ -745,7 +745,7 @@ function DetailFarmers({ farmers, onBack }) {
 /* ═══════════════════════════════════════════════════════
    MAIN DASHBOARD
 ═══════════════════════════════════════════════════════ */
-export default function Dashboard({ onNavigate }) {
+export default function Dashboard({ onNavigate, dashBackRef }) {
   const [cprList,     setCprList]     = useState([]);
   const [twcList,     setTwcList]     = useState([]);
   const [stock,       setStock]       = useState([]);
@@ -753,6 +753,13 @@ export default function Dashboard({ onNavigate }) {
   const [inspectors,  setInspectors]  = useState([]);
   const [loading,     setLoading]     = useState(true);
   const [detail,      setDetail]      = useState(null); // which card is open
+
+  // Keep hardware back button coordinated with App's handler
+  useEffect(() => {
+    if (dashBackRef) {
+      dashBackRef.current = detail ? () => setDetail(null) : null;
+    }
+  }, [detail, dashBackRef]);
 
   useEffect(() => {
     const unsubs = [
@@ -797,7 +804,6 @@ export default function Dashboard({ onNavigate }) {
   if (detail === 'inspectors')   return <DetailInspectors   inspectors={inspectors}   onBack={() => setDetail(null)} />;
   if (detail === 'bags_storage') return <DetailBagsInStorage stock={stock}            onBack={() => setDetail(null)} />;
   if (detail === 'ready_ship')   return <DetailReadyToShip  stock={stock}             onBack={() => setDetail(null)} />;
-  if (detail === 'farmers')      return <DetailFarmers      farmers={farmers}         onBack={() => setDetail(null)} />;
 
   // ── Clickable stat card ──
   function ClickCard({ id, icon, value, label, accent, sub, hint }) {
@@ -846,38 +852,67 @@ export default function Dashboard({ onNavigate }) {
         <ClickCard id="inspectors"   icon="👤" value={inspectors.length}       label="Inspectors"          accent="var(--green)"        sub="With assigned stations" hint />
         <ClickCard id="bags_storage" icon="🧺" value={inShed.length + inWarehouse.length} label="Bags in Storage" accent="var(--amber)" sub={fmt.kg(shedWeight + warehouseWeight)} hint />
         <ClickCard id="ready_ship"   icon="✅" value={readyToShip.length}      label="Ready to Ship"       accent="var(--green)"        sub={fmt.kg(shipWeight)} hint />
-        <ClickCard id="farmers"      icon="👩‍🌾" value={farmers.length}          label="Registered Farmers"  accent="var(--teal-light)"   sub={`Across ${[...new Set(farmers.map(f=>f.island).filter(Boolean))].length} islands`} hint />
-      </div>
 
-      {/* Weight by Island mini chart */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header">
-          <div>
-            <div className="card-title">⚖️ CPR Weight by Island</div>
-            <div className="card-subtitle">Cumulative totals across all time</div>
+        {/* Registered Farmers → opens Farmers Registry section */}
+        <button
+          type="button"
+          className="stat-card stat-card-btn"
+          style={{ '--accent-color': 'var(--teal-light)', textAlign: 'left', width: '100%' }}
+          onClick={() => onNavigate('farmers')}
+        >
+          <div className="stat-icon">👩‍🌾</div>
+          <div className="stat-value">{farmers.length}</div>
+          <div className="stat-label">Registered Farmers</div>
+          <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+            Across {[...new Set(farmers.map(f=>f.island).filter(Boolean))].length} islands
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('analytics')} type="button">
-            Full Analytics →
-          </button>
-        </div>
-        <div className="mini-bar-wrap">
-          {islandWeights.slice(0, 8).map((row, i) => (
-            <div key={row.island} className="mini-bar-row">
-              <div className="mini-bar-label" title={row.island}>{row.island}</div>
-              <div className="mini-bar-track">
-                <div className="mini-bar-fill" style={{
-                  width: `${Math.min(100, (row.weight / maxIslandWeight) * 100)}%`,
-                  background: ['var(--teal)','var(--gold)','var(--purple)','var(--green)','var(--amber)'][i % 5],
-                }} />
+          <div style={{ marginTop: 4, fontSize: '0.68rem', color: 'var(--teal)', fontWeight: 600 }}>Tap to view registry →</div>
+        </button>
+
+        {/* CPR Weight by Island — square card spanning full grid width */}
+        <div
+          className="stat-card"
+          style={{
+            gridColumn: '1 / -1',
+            aspectRatio: '1 / 1',
+            '--accent-color': 'var(--gold)',
+            padding: '16px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexShrink: 0 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-head)', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                ⚖️ CPR Weight by Island
               </div>
-              <div className="mini-bar-val">{fmt.kg(row.weight)}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                Cumulative totals across all time
+              </div>
             </div>
-          ))}
-          {islandWeights.length === 0 && (
-            <div className="empty-state" style={{ padding: 20 }}>
-              <div className="empty-state-text">No CPR data yet</div>
-            </div>
-          )}
+            <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('analytics')} type="button" style={{ flexShrink: 0 }}>
+              Analytics →
+            </button>
+          </div>
+          <div className="mini-bar-wrap" style={{ flex: 1, overflowY: 'auto' }}>
+            {islandWeights.slice(0, 8).map((row, i) => (
+              <div key={row.island} className="mini-bar-row">
+                <div className="mini-bar-label" title={row.island}>{row.island}</div>
+                <div className="mini-bar-track">
+                  <div className="mini-bar-fill" style={{
+                    width: `${Math.min(100, (row.weight / maxIslandWeight) * 100)}%`,
+                    background: ['var(--teal)','var(--gold)','var(--purple)','var(--green)','var(--amber)'][i % 5],
+                  }} />
+                </div>
+                <div className="mini-bar-val">{fmt.kg(row.weight)}</div>
+              </div>
+            ))}
+            {islandWeights.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                No CPR data yet
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
