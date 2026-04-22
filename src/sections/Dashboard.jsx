@@ -1,5 +1,5 @@
 // src/sections/Dashboard.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { fmt, sumField, groupBy } from '../utils/helpers';
@@ -28,9 +28,38 @@ function applyDateFilter(arr, dateField, from, to) {
   });
 }
 
+/* ─── Reusable dropdown ──────────────────────────────── */
+function Dropdown({ trigger, children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <div onClick={() => setOpen(o => !o)}>{trigger}</div>
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+          background: 'var(--surface)', border: '1.5px solid var(--border-mid)',
+          borderRadius: 10, boxShadow: 'var(--shadow-lg)', zIndex: 50,
+          minWidth: 190, overflow: 'hidden',
+        }}>
+          {typeof children === 'function' ? children(() => setOpen(false)) : children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Reusable filter bar ────────────────────────────── */
 function FilterBar({ from, to, setFrom, setTo }) {
-  const [open,   setOpen]   = useState(false);
   const [custom, setCustom] = useState(false);
 
   const activeLabel = useMemo(() => {
@@ -42,49 +71,32 @@ function FilterBar({ from, to, setFrom, setTo }) {
     return `${from || '…'} → ${to || '…'}`;
   }, [from, to]);
 
-  function pick(preset) {
-    if (preset.from === null) { setCustom(true); setOpen(false); return; }
-    setFrom(preset.from);
-    setTo(preset.to);
-    setCustom(false);
-    setOpen(false);
-  }
-
   return (
-    <div style={{ position: 'relative', display: 'inline-block' }}>
-      <button
-        type="button"
-        className="btn btn-sm btn-secondary"
-        onClick={() => setOpen(o => !o)}
-        style={{ gap: 6 }}
-      >
-        🗓 {activeLabel} ▾
-      </button>
-
-      {open && (
-        <div style={{
-          position: 'absolute', right: 0, top: 'calc(100% + 6px)',
-          background: 'var(--surface)', border: '1.5px solid var(--border-mid)',
-          borderRadius: 10, boxShadow: 'var(--shadow-lg)', zIndex: 50,
-          minWidth: 180, overflow: 'hidden',
-        }}>
-          {DATE_PRESETS.map(p => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => pick(p)}
-              style={{
-                display: 'block', width: '100%', padding: '10px 16px',
-                textAlign: 'left', background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: '0.85rem',
-                color: activeLabel === p.label ? 'var(--teal)' : 'var(--text-primary)',
-                fontWeight: activeLabel === p.label ? 700 : 400,
-                borderBottom: '1px solid var(--border)',
-              }}
-            >{p.label}</button>
-          ))}
-        </div>
-      )}
+    <div>
+      <Dropdown trigger={
+        <button type="button" className="btn btn-sm btn-secondary" style={{ gap: 6 }}>
+          🗓 {activeLabel} ▾
+        </button>
+      }>
+        {(close) => DATE_PRESETS.map(p => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => {
+              if (p.from === null) { setCustom(true); close(); return; }
+              setFrom(p.from); setTo(p.to); setCustom(false); close();
+            }}
+            style={{
+              display: 'block', width: '100%', padding: '10px 16px',
+              textAlign: 'left', background: activeLabel === p.label ? 'var(--teal-dim)' : 'none',
+              border: 'none', cursor: 'pointer', fontSize: '0.85rem',
+              color: activeLabel === p.label ? 'var(--teal)' : 'var(--text-primary)',
+              fontWeight: activeLabel === p.label ? 700 : 400,
+              borderBottom: '1px solid var(--border)',
+            }}
+          >{p.label}</button>
+        ))}
+      </Dropdown>
 
       {custom && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -99,8 +111,16 @@ function FilterBar({ from, to, setFrom, setTo }) {
   );
 }
 
-/* ─── Breadcrumb ─────────────────────────────────────── */
+/* ─── Breadcrumb (also handles device back button) ───── */
 function Breadcrumb({ label, onBack }) {
+  useEffect(() => {
+    // Push a history entry so device back fires popstate
+    window.history.pushState({ dashDetail: true }, '');
+    function onPop() { onBack(); }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [onBack]);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
       <button type="button" className="btn btn-sm btn-ghost" onClick={onBack} style={{ gap: 5 }}>
@@ -229,19 +249,13 @@ function DetailCPRWeight({ cprList, onBack }) {
   const totalWeight   = rows.reduce((s, r) => s + r.weight,   0);
   const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
 
-  const SortBtn = ({ field, label }) => (
-    <button
-      type="button"
-      onClick={() => setSortBy(field)}
-      style={{
-        background: sortBy === field ? 'var(--teal)' : 'none',
-        color: sortBy === field ? '#fff' : 'var(--text-secondary)',
-        border: '1px solid var(--border-mid)',
-        borderRadius: 6, padding: '4px 10px',
-        fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-      }}
-    >{label}</button>
-  );
+  const SORT_OPTIONS = [
+    { value: 'weight',      label: 'Weight ↓' },
+    { value: 'sessions',    label: 'Sessions ↓' },
+    { value: 'island',      label: 'Island A–Z' },
+    { value: 'cooperative', label: 'Cooperative A–Z' },
+  ];
+  const sortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort';
 
   return (
     <div>
@@ -251,12 +265,27 @@ function DetailCPRWeight({ cprList, onBack }) {
         subtitle={`${rows.length} cooperatives · ${totalSessions} sessions · ${fmt.kg(totalWeight)}`}
         from={from} to={to} setFrom={setFrom} setTo={setTo}
       />
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', alignSelf: 'center', marginRight: 4 }}>Sort by:</span>
-        <SortBtn field="weight"      label="Weight ↓" />
-        <SortBtn field="sessions"    label="Sessions ↓" />
-        <SortBtn field="island"      label="Island A–Z" />
-        <SortBtn field="cooperative" label="Cooperative A–Z" />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sort by:</span>
+        <Dropdown trigger={
+          <button type="button" className="btn btn-sm btn-secondary" style={{ gap: 6 }}>
+            {sortLabel} ▾
+          </button>
+        }>
+          {(close) => SORT_OPTIONS.map(o => (
+            <button key={o.value} type="button"
+              onClick={() => { setSortBy(o.value); close(); }}
+              style={{
+                display: 'block', width: '100%', padding: '10px 16px',
+                textAlign: 'left', background: sortBy === o.value ? 'var(--teal-dim)' : 'none',
+                border: 'none', cursor: 'pointer', fontSize: '0.85rem',
+                color: sortBy === o.value ? 'var(--teal)' : 'var(--text-primary)',
+                fontWeight: sortBy === o.value ? 700 : 400,
+                borderBottom: '1px solid var(--border)',
+              }}
+            >{o.label}</button>
+          ))}
+        </Dropdown>
       </div>
       <div className="tbl-wrap">
         <table>
@@ -815,7 +844,7 @@ export default function Dashboard({ onNavigate }) {
         <ClickCard id="cpr_weight"   icon="⚖️"  value={fmt.kg(totalCPRWeight)}  label="Total CPR Weight"    accent="var(--gold)"         sub={`${[...new Set(cprList.map(c=>c.cooperative_name).filter(Boolean))].length} cooperatives`} hint />
         <ClickCard id="twc_records"  icon="🚢" value={twcList.length}          label="Total TWC Records"   accent="var(--purple)"       sub={`${totalSacks.toLocaleString()} sacks shipped`} hint />
         <ClickCard id="inspectors"   icon="👤" value={inspectors.length}       label="Inspectors"          accent="var(--green)"        sub="With assigned stations" hint />
-        <ClickCard id="bags_storage" icon="📦" value={inShed.length + inWarehouse.length} label="Bags in Storage" accent="var(--amber)" sub={fmt.kg(shedWeight + warehouseWeight)} hint />
+        <ClickCard id="bags_storage" icon="🧺" value={inShed.length + inWarehouse.length} label="Bags in Storage" accent="var(--amber)" sub={fmt.kg(shedWeight + warehouseWeight)} hint />
         <ClickCard id="ready_ship"   icon="✅" value={readyToShip.length}      label="Ready to Ship"       accent="var(--green)"        sub={fmt.kg(shipWeight)} hint />
         <ClickCard id="farmers"      icon="👩‍🌾" value={farmers.length}          label="Registered Farmers"  accent="var(--teal-light)"   sub={`Across ${[...new Set(farmers.map(f=>f.island).filter(Boolean))].length} islands`} hint />
       </div>
