@@ -32,7 +32,7 @@ export const SECTIONS = [
     items: [
       { id: 'cpr',       icon: '📋', label: 'CPR Records',       desc: 'Copra Purchase Records — search & export' },
       { id: 'twc',       icon: '🚢', label: 'TWC Records',       desc: 'Transport Weighing Certificates' },
-      { id: 'shedstock', icon: '📦', label: 'Shed & Warehouse',  desc: 'Bag inventory by stage and station' },
+      { id: 'shedstock', icon: '🛍️', label: 'Shed & Warehouse',  desc: 'Bag inventory by stage and station' },
       { id: 'shipments', icon: '🛳️', label: 'Shipments',         desc: 'Ready-to-ship & shipped bag manifests' },
       { id: 'farmers',   icon: '👩‍🌾', label: 'Farmers Registry', desc: 'Registered farmer profiles & search' },
     ],
@@ -298,7 +298,14 @@ export default function App() {
     setAccessDenied(false);
   }
 
-  function navigate(id) { setSection(id || null); }
+  function navigate(id) {
+    // If going to Dashboard, close any open detail screen first
+    if (id === 'dashboard' && dashBackRef.current) {
+      dashBackRef.current();
+      dashBackRef.current = null;
+    }
+    setSection(id || null);
+  }
 
   function handleExitApp() {
     try {
