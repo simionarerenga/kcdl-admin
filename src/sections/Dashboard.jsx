@@ -162,26 +162,81 @@ function SectionHeader({ title, subtitle, from, to, setFrom, setTo }) {
    DETAIL SCREENS
 ═══════════════════════════════════════════════════════ */
 
+/* ─── Reusable Sort Bar ───────────────────────────────── */
+function SortBar({ sortField, sortDir, setSort, options }) {
+  const active = options.find(o => o.field === sortField);
+  const label  = active ? `${active.label} ${sortDir === 'asc' ? '↑' : '↓'}` : 'Sort by';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sort by:</span>
+      <Dropdown trigger={
+        <button type="button" className="btn btn-sm btn-secondary" style={{ gap: 6 }}>
+          {label} ▾
+        </button>
+      }>
+        {(close) => options.map(o => {
+          const isActive = sortField === o.field;
+          const nextDir  = isActive ? (sortDir === 'desc' ? 'asc' : 'desc') : 'desc';
+          return (
+            <button key={o.field} type="button"
+              onClick={() => { setSort(o.field, isActive ? (sortDir === 'desc' ? 'asc' : 'desc') : 'desc'); close(); }}
+              style={{
+                display: 'block', width: '100%', padding: '10px 16px',
+                textAlign: 'left', background: isActive ? 'var(--teal-dim)' : 'none',
+                border: 'none', cursor: 'pointer', fontSize: '0.85rem',
+                color: isActive ? 'var(--teal)' : 'var(--text-primary)',
+                fontWeight: isActive ? 700 : 400, borderBottom: '1px solid var(--border)',
+              }}
+            >
+              {o.label} {isActive ? (sortDir === 'desc' ? '↓ — tap for ↑' : '↑ — tap for ↓') : '↓'}
+            </button>
+          );
+        })}
+      </Dropdown>
+    </div>
+  );
+}
+
 /* 1. CPR Records — by Island */
 function DetailCPRRecords({ cprList, onBack }) {
-  const [from, setFrom] = useState('');
-  const [to,   setTo]   = useState('');
+  const [from,      setFrom]      = useState('');
+  const [to,        setTo]        = useState('');
+  const [sortField, setSortField] = useState('weight');
+  const [sortDir,   setSortDir]   = useState('desc');
 
   const filtered = useMemo(() => applyDateFilter(cprList, 'date', from, to), [cprList, from, to]);
 
   const rows = useMemo(() => {
     const byIsland = groupBy(filtered, 'island');
+    const totalW = sumField(filtered, 'total_weight_cpr');
     return Object.entries(byIsland)
-      .map(([island, items]) => ({
-        island,
-        sessions: items.length,
-        weight:   sumField(items, 'total_weight_cpr'),
-      }))
-      .sort((a, b) => b.weight - a.weight);
-  }, [filtered]);
+      .map(([island, items]) => {
+        const weight = sumField(items, 'total_weight_cpr');
+        return {
+          island,
+          cooperatives: [...new Set(items.map(i => i.cooperative_name).filter(Boolean))].length,
+          sessions: items.length,
+          weight,
+          pct: totalW > 0 ? (weight / totalW) * 100 : 0,
+        };
+      })
+      .sort((a, b) => {
+        let av = a[sortField], bv = b[sortField];
+        if (sortField === 'island') { av = a.island; bv = b.island; return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av); }
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+  }, [filtered, sortField, sortDir]);
 
   const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
-  const totalWeight   = rows.reduce((s, r) => s + r.weight,   0);
+  const totalWeight   = rows.reduce((s, r) => s + r.weight, 0);
+
+  const SORT_OPTS = [
+    { field: 'island',   label: 'Island' },
+    { field: 'cooperatives', label: 'Cooperatives' },
+    { field: 'sessions', label: 'CPR Sessions' },
+    { field: 'weight',   label: 'Total Weight' },
+    { field: 'pct',      label: '% of Total' },
+  ];
 
   return (
     <div>
@@ -191,12 +246,15 @@ function DetailCPRRecords({ cprList, onBack }) {
         subtitle={`${totalSessions} sessions · ${fmt.kg(totalWeight)} total`}
         from={from} to={to} setFrom={setFrom} setTo={setTo}
       />
+      <SortBar sortField={sortField} sortDir={sortDir} options={SORT_OPTS}
+        setSort={(f, d) => { setSortField(f); setSortDir(d); }} />
       <div className="tbl-wrap">
         <table>
           <thead>
             <tr>
               <th>#</th>
               <th>Island</th>
+              <th style={{ textAlign: 'right' }}>Cooperatives</th>
               <th style={{ textAlign: 'right' }}>CPR Sessions</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
               <th style={{ textAlign: 'right' }}>% of Total</th>
@@ -207,121 +265,11 @@ function DetailCPRRecords({ cprList, onBack }) {
               <tr key={r.island}>
                 <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{i + 1}</td>
                 <td style={{ fontWeight: 600 }}>{r.island}</td>
+                <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{r.cooperatives || '—'}</td>
                 <td style={{ textAlign: 'right' }}>{r.sessions}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--teal)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r.weight)}</td>
                 <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {totalWeight > 0 ? ((r.weight / totalWeight) * 100).toFixed(1) + '%' : '—'}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No records found</td></tr>
-            )}
-          </tbody>
-          {rows.length > 0 && (
-            <tfoot>
-              <tr>
-                <td colSpan={2} style={{ fontWeight: 700 }}>Total</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totalSessions}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{fmt.kg(totalWeight)}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>100%</td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-    </div>
-  );
-}
-
-/* 2. CPR Weight — by Cooperative (island, cooperative, sessions, kg) */
-function DetailCPRWeight({ cprList, onBack }) {
-  const [from, setFrom] = useState('');
-  const [to,   setTo]   = useState('');
-  const [sortBy, setSortBy] = useState('weight'); // weight | sessions | island | cooperative
-
-  const filtered = useMemo(() => applyDateFilter(cprList, 'date', from, to), [cprList, from, to]);
-
-  const rows = useMemo(() => {
-    const byCoop = groupBy(filtered, 'cooperative_name');
-    return Object.entries(byCoop)
-      .map(([coop, items]) => ({
-        cooperative: coop,
-        island:      items[0]?.island || '—',
-        sessions:    items.length,
-        weight:      sumField(items, 'total_weight_cpr'),
-      }))
-      .sort((a, b) => {
-        if (sortBy === 'island') return (a.island).localeCompare(b.island);
-        if (sortBy === 'cooperative') return a.cooperative.localeCompare(b.cooperative);
-        if (sortBy === 'sessions') return b.sessions - a.sessions;
-        return b.weight - a.weight;
-      });
-  }, [filtered, sortBy]);
-
-  const totalWeight   = rows.reduce((s, r) => s + r.weight,   0);
-  const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
-
-  const SORT_OPTIONS = [
-    { value: 'weight',      label: 'Weight ↓' },
-    { value: 'sessions',    label: 'Sessions ↓' },
-    { value: 'island',      label: 'Island A–Z' },
-    { value: 'cooperative', label: 'Cooperative A–Z' },
-  ];
-  const sortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort';
-
-  return (
-    <div>
-      <Breadcrumb label="CPR Weight by Cooperative" onBack={onBack} />
-      <SectionHeader
-        title="CPR Weight by Cooperative"
-        subtitle={`${rows.length} cooperatives · ${totalSessions} sessions · ${fmt.kg(totalWeight)}`}
-        from={from} to={to} setFrom={setFrom} setTo={setTo}
-      />
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Sort by:</span>
-        <Dropdown trigger={
-          <button type="button" className="btn btn-sm btn-secondary" style={{ gap: 6 }}>
-            {sortLabel} ▾
-          </button>
-        }>
-          {(close) => SORT_OPTIONS.map(o => (
-            <button key={o.value} type="button"
-              onClick={() => { setSortBy(o.value); close(); }}
-              style={{
-                display: 'block', width: '100%', padding: '10px 16px',
-                textAlign: 'left', background: sortBy === o.value ? 'var(--teal-dim)' : 'none',
-                border: 'none', cursor: 'pointer', fontSize: '0.85rem',
-                color: sortBy === o.value ? 'var(--teal)' : 'var(--text-primary)',
-                fontWeight: sortBy === o.value ? 700 : 400,
-                borderBottom: '1px solid var(--border)',
-              }}
-            >{o.label}</button>
-          ))}
-        </Dropdown>
-      </div>
-      <div className="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Island</th>
-              <th>Cooperative</th>
-              <th style={{ textAlign: 'right' }}>Sessions</th>
-              <th style={{ textAlign: 'right' }}>Total Weight</th>
-              <th style={{ textAlign: 'right' }}>% Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={r.cooperative}>
-                <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{i + 1}</td>
-                <td>{r.island}</td>
-                <td style={{ fontWeight: 600 }}>{r.cooperative}</td>
-                <td style={{ textAlign: 'right' }}>{r.sessions}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r.weight)}</td>
-                <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {totalWeight > 0 ? ((r.weight / totalWeight) * 100).toFixed(1) + '%' : '—'}
+                  {r.pct > 0 ? r.pct.toFixed(1) + '%' : '—'}
                 </td>
               </tr>
             ))}
@@ -345,45 +293,166 @@ function DetailCPRWeight({ cprList, onBack }) {
   );
 }
 
-/* 3. TWC Records — by Island */
-function DetailTWCRecords({ twcList, onBack }) {
-  const [from, setFrom] = useState('');
-  const [to,   setTo]   = useState('');
+/* 2. CPR Weight — by Cooperative */
+function DetailCPRWeight({ cprList, onBack }) {
+  const [from,      setFrom]      = useState('');
+  const [to,        setTo]        = useState('');
+  const [sortField, setSortField] = useState('weight');
+  const [sortDir,   setSortDir]   = useState('desc');
 
-  const filtered = useMemo(() => applyDateFilter(twcList, 'date', from, to), [twcList, from, to]);
+  const filtered = useMemo(() => applyDateFilter(cprList, 'date', from, to), [cprList, from, to]);
 
   const rows = useMemo(() => {
-    const byIsland = groupBy(filtered, 'island');
-    return Object.entries(byIsland)
-      .map(([island, items]) => ({
-        island,
-        sessions: items.length,
-        sacks:    items.reduce((s, t) => s + (parseInt(t.number_of_sacks) || 0), 0),
-        weight:   sumField(items, 'total_weight_twc'),
-      }))
-      .sort((a, b) => b.weight - a.weight);
-  }, [filtered]);
+    const byCoop  = groupBy(filtered, 'cooperative_name');
+    const totalW  = sumField(filtered, 'total_weight_cpr');
+    return Object.entries(byCoop)
+      .map(([coop, items]) => {
+        const weight = sumField(items, 'total_weight_cpr');
+        return {
+          cooperative: coop,
+          island:      items[0]?.island || '—',
+          station:     items[0]?.stationId || '—',
+          sessions:    items.length,
+          weight,
+          pct: totalW > 0 ? (weight / totalW) * 100 : 0,
+        };
+      })
+      .sort((a, b) => {
+        if (sortField === 'island')       return sortDir === 'asc' ? a.island.localeCompare(b.island)       : b.island.localeCompare(a.island);
+        if (sortField === 'cooperative')  return sortDir === 'asc' ? a.cooperative.localeCompare(b.cooperative) : b.cooperative.localeCompare(a.cooperative);
+        if (sortField === 'station')      return sortDir === 'asc' ? a.station.localeCompare(b.station)     : b.station.localeCompare(a.station);
+        const av = a[sortField], bv = b[sortField];
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+  }, [filtered, sortField, sortDir]);
 
-  const totals = rows.reduce((acc, r) => ({
-    sessions: acc.sessions + r.sessions,
-    sacks:    acc.sacks    + r.sacks,
-    weight:   acc.weight   + r.weight,
-  }), { sessions: 0, sacks: 0, weight: 0 });
+  const totalWeight   = rows.reduce((s, r) => s + r.weight, 0);
+  const totalSessions = rows.reduce((s, r) => s + r.sessions, 0);
+
+  const SORT_OPTS = [
+    { field: 'island',      label: 'Island' },
+    { field: 'station',     label: 'Station' },
+    { field: 'cooperative', label: 'Cooperative' },
+    { field: 'sessions',    label: 'CPR Sessions' },
+    { field: 'weight',      label: 'Total Weight' },
+    { field: 'pct',         label: '% of Total' },
+  ];
 
   return (
     <div>
-      <Breadcrumb label="TWC Records by Island" onBack={onBack} />
+      <Breadcrumb label="CPR Weight by Cooperative" onBack={onBack} />
       <SectionHeader
-        title="TWC Records by Island"
-        subtitle={`${totals.sessions} shipments · ${totals.sacks.toLocaleString()} sacks · ${fmt.kg(totals.weight)}`}
+        title="CPR Weight by Cooperative"
+        subtitle={`${rows.length} cooperatives · ${totalSessions} sessions · ${fmt.kg(totalWeight)}`}
         from={from} to={to} setFrom={setFrom} setTo={setTo}
       />
+      <SortBar sortField={sortField} sortDir={sortDir} options={SORT_OPTS}
+        setSort={(f, d) => { setSortField(f); setSortDir(d); }} />
       <div className="tbl-wrap">
         <table>
           <thead>
             <tr>
               <th>#</th>
               <th>Island</th>
+              <th>Station</th>
+              <th>Cooperative</th>
+              <th style={{ textAlign: 'right' }}>CPR Sessions</th>
+              <th style={{ textAlign: 'right' }}>Total Weight</th>
+              <th style={{ textAlign: 'right' }}>% Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.cooperative}>
+                <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{i + 1}</td>
+                <td>{r.island}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{r.station}</td>
+                <td style={{ fontWeight: 600 }}>{r.cooperative}</td>
+                <td style={{ textAlign: 'right' }}>{r.sessions}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r.weight)}</td>
+                <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {r.pct > 0 ? r.pct.toFixed(1) + '%' : '—'}
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No records found</td></tr>
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot>
+              <tr>
+                <td colSpan={4} style={{ fontWeight: 700 }}>Total</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totalSessions}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{fmt.kg(totalWeight)}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>100%</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* 3. TWC Records — individual records */
+function DetailTWCRecords({ twcList, onBack }) {
+  const [from, setFrom] = useState('');
+  const [to,   setTo]   = useState('');
+  const [sortField, setSortField] = useState('date');
+  const [sortDir,   setSortDir]   = useState('desc');
+
+  const filtered = useMemo(() => applyDateFilter(twcList, 'date', from, to), [twcList, from, to]);
+  const totalWeight = useMemo(() => sumField(filtered, 'total_weight_twc'), [filtered]);
+
+  const rows = useMemo(() => {
+    return [...filtered]
+      .map(t => ({
+        ...t,
+        _weight: parseFloat(t.total_weight_twc) || 0,
+        _sacks:  parseInt(t.number_of_sacks) || 0,
+        _pct:    totalWeight > 0 ? ((parseFloat(t.total_weight_twc)||0) / totalWeight) * 100 : 0,
+      }))
+      .sort((a, b) => {
+        if (sortField === 'date')        return sortDir === 'asc' ? (a.date||'').localeCompare(b.date||'')        : (b.date||'').localeCompare(a.date||'');
+        if (sortField === 'island')      return sortDir === 'asc' ? (a.island||'').localeCompare(b.island||'')    : (b.island||'').localeCompare(a.island||'');
+        if (sortField === 'cooperative') return sortDir === 'asc' ? (a.cooperative_name||'').localeCompare(b.cooperative_name||'') : (b.cooperative_name||'').localeCompare(a.cooperative_name||'');
+        const av = sortField === '_weight' ? a._weight : sortField === '_sacks' ? a._sacks : a._pct;
+        const bv = sortField === '_weight' ? b._weight : sortField === '_sacks' ? b._sacks : b._pct;
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+  }, [filtered, totalWeight, sortField, sortDir]);
+
+  const totalSacks     = rows.reduce((s, r) => s + r._sacks, 0);
+  const totalShipments = rows.length;
+
+  const SORT_OPTS = [
+    { field: 'date',        label: 'Date' },
+    { field: 'island',      label: 'Island' },
+    { field: 'cooperative', label: 'Cooperative' },
+    { field: '_sacks',      label: 'Sacks' },
+    { field: '_weight',     label: 'Total Weight' },
+    { field: '_pct',        label: '% of Total' },
+  ];
+
+  return (
+    <div>
+      <Breadcrumb label="TWC Records by Island" onBack={onBack} />
+      <SectionHeader
+        title="TWC Records by Island"
+        subtitle={`${totalShipments} shipments · ${totalSacks.toLocaleString()} sacks · ${fmt.kg(totalWeight)}`}
+        from={from} to={to} setFrom={setFrom} setTo={setTo}
+      />
+      <SortBar sortField={sortField} sortDir={sortDir} options={SORT_OPTS}
+        setSort={(f, d) => { setSortField(f); setSortDir(d); }} />
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Island</th>
+              <th>Cooperative</th>
               <th style={{ textAlign: 'right' }}>Shipments</th>
               <th style={{ textAlign: 'right' }}>Sacks</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
@@ -392,28 +461,30 @@ function DetailTWCRecords({ twcList, onBack }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.island}>
+              <tr key={r.id}>
                 <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{i + 1}</td>
-                <td style={{ fontWeight: 600 }}>{r.island}</td>
-                <td style={{ textAlign: 'right' }}>{r.sessions}</td>
-                <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{r.sacks.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r.weight)}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{r.date || '—'}</td>
+                <td style={{ fontWeight: 600 }}>{r.island || '—'}</td>
+                <td>{r.cooperative_name || '—'}</td>
+                <td style={{ textAlign: 'right' }}>1</td>
+                <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{r._sacks.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--purple)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r._weight)}</td>
                 <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {totals.weight > 0 ? ((r.weight / totals.weight) * 100).toFixed(1) + '%' : '—'}
+                  {r._pct > 0 ? r._pct.toFixed(1) + '%' : '—'}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No records found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No records found</td></tr>
             )}
           </tbody>
           {rows.length > 0 && (
             <tfoot>
               <tr>
-                <td colSpan={2} style={{ fontWeight: 700 }}>Total</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totals.sessions}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{totals.sacks.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{fmt.kg(totals.weight)}</td>
+                <td colSpan={4} style={{ fontWeight: 700 }}>Total</td>
+                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totalShipments}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{totalSacks.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{fmt.kg(totalWeight)}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700 }}>100%</td>
               </tr>
             </tfoot>
@@ -467,8 +538,8 @@ function DetailInspectors({ inspectors, onBack }) {
           <thead>
             <tr>
               <th>Island</th>
-              <th>Cooperative Assigned to</th>
               <th>Full Name</th>
+              <th>Cooperative Assigned to</th>
               <th>Phone</th>
               <th>Email</th>
               <th>Station ID</th>
@@ -480,8 +551,8 @@ function DetailInspectors({ inspectors, onBack }) {
             {rows.map(u => (
               <tr key={u.id}>
                 <td style={{ fontWeight: 600 }}>{u.island || '—'}</td>
-                <td>{u.cooperativeName || u.cooperative || '—'}</td>
                 <td style={{ fontWeight: 600 }}>{u.displayName || u.name || '—'}</td>
+                <td>{u.cooperativeName || u.cooperative || '—'}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{u.phone || '—'}</td>
                 <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{u.email || '—'}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
@@ -507,120 +578,289 @@ function DetailInspectors({ inspectors, onBack }) {
   );
 }
 
-/* 5. Bags in Storage — tabs: All / In Shed / In Warehouse */
+/* 5. Sacks/Bags Register */
 function DetailBagsInStorage({ stock, onBack }) {
-  const [tab,     setTab]     = useState('all');
-  const [station, setStation] = useState('');
+  const [stationFilter, setStationFilter] = useState('');
+  const [showRegister,  setShowRegister]  = useState(false);
+  const [showDistrib,   setShowDistrib]   = useState(false);
+
+  // Register form state
+  const [regPrefix,     setRegPrefix]     = useState('');
+  const [regStart,      setRegStart]      = useState('');
+  const [regEnd,        setRegEnd]        = useState('');
+  const [regStation,    setRegStation]    = useState('');
+  const [regBagType,    setRegBagType]    = useState('');
+
+  // Distribute form state
+  const [distFrom,      setDistFrom]      = useState('');
+  const [distTo,        setDistTo]        = useState('');
+  const [distSerialStart, setDistSerialStart] = useState('');
+  const [distSerialEnd,   setDistSerialEnd]   = useState('');
+  const [distDate,        setDistDate]        = useState(new Date().toISOString().slice(0,10));
+  const [distNotes,       setDistNotes]       = useState('');
 
   const stations = useMemo(() =>
     [...new Set(stock.map(s => s.stationId).filter(Boolean))].sort(), [stock]);
 
-  const stageStock = useMemo(() => ({
-    all:          stock.filter(s => ['recently_weighed','in_shed','in_warehouse'].includes(s.status)),
-    in_shed:      stock.filter(s => s.status === 'in_shed'),
-    in_warehouse: stock.filter(s => s.status === 'in_warehouse'),
-  }), [stock]);
-
-  const base = stageStock[tab] || [];
-  const filtered = useMemo(() =>
-    base.filter(s => !station || s.stationId === station), [base, station]);
-
   const byStation = useMemo(() => {
-    const grp = groupBy(filtered, 'stationId');
+    const base = stationFilter ? stock.filter(s => s.stationId === stationFilter) : stock;
+    const grp  = groupBy(base, 'stationId');
     return Object.entries(grp).map(([sid, bags]) => ({
-      stationId: sid,
-      bags:      bags.length,
-      weight:    sumField(bags, 'stationWeight'),
-      shed:      bags.filter(b => b.status === 'in_shed').length,
-      warehouse: bags.filter(b => b.status === 'in_warehouse').length,
-      weighed:   bags.filter(b => b.status === 'recently_weighed').length,
-    })).sort((a, b) => b.bags - a.bags);
-  }, [filtered]);
+      stationId:        sid,
+      total:            bags.length,
+      emptyShed:        bags.filter(b => b.status === 'empty_shed').length,
+      emptyWarehouse:   bags.filter(b => b.status === 'empty_warehouse').length,
+      distributed:      bags.filter(b => b.status === 'distributed').length,
+      weighedShed:      bags.filter(b => b.status === 'in_shed').length,
+      weighedWarehouse: bags.filter(b => b.status === 'in_warehouse').length,
+      pending:          bags.filter(b => ['pending','registered','recently_weighed'].includes(b.status)).length,
+    })).sort((a, b) => b.total - a.total);
+  }, [stock, stationFilter]);
 
-  const totalBags   = byStation.reduce((s, r) => s + r.bags,   0);
-  const totalWeight = byStation.reduce((s, r) => s + r.weight, 0);
+  const totals = byStation.reduce((acc, r) => ({
+    total:            acc.total            + r.total,
+    emptyShed:        acc.emptyShed        + r.emptyShed,
+    emptyWarehouse:   acc.emptyWarehouse   + r.emptyWarehouse,
+    distributed:      acc.distributed      + r.distributed,
+    weighedShed:      acc.weighedShed      + r.weighedShed,
+    weighedWarehouse: acc.weighedWarehouse + r.weighedWarehouse,
+    pending:          acc.pending          + r.pending,
+  }), { total:0, emptyShed:0, emptyWarehouse:0, distributed:0, weighedShed:0, weighedWarehouse:0, pending:0 });
 
-  const TABS = [
-    { id: 'all',          label: `All (${stageStock.all.length})` },
-    { id: 'in_shed',      label: `In Shed (${stageStock.in_shed.length})` },
-    { id: 'in_warehouse', label: `In Warehouse (${stageStock.in_warehouse.length})` },
-  ];
+  // Serial preview
+  const regPreview = useMemo(() => {
+    const s = parseInt(regStart), e = parseInt(regEnd);
+    if (!regStart || !regEnd || isNaN(s) || isNaN(e) || e < s) return null;
+    const count = e - s + 1;
+    const pad = Math.max(regStart.length, regEnd.length);
+    const first = regPrefix + String(s).padStart(pad, '0');
+    const last  = regPrefix + String(e).padStart(pad, '0');
+    return { count, first, last };
+  }, [regPrefix, regStart, regEnd]);
+
+  const thStyle = { textAlign: 'right', fontSize: '0.7rem', whiteSpace: 'nowrap' };
+  const tdRight = { textAlign: 'right', fontFamily: 'var(--font-mono)' };
 
   return (
     <div>
-      <Breadcrumb label="Bags in Storage" onBack={onBack} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
+      <Breadcrumb label="Sacks/Bags Register" onBack={onBack} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Bags in Storage by Station</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{totalBags} bags · {fmt.kg(totalWeight)}</div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Sacks/Bags by Station</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{totals.total} bags across {byStation.length} stations</div>
         </div>
-        <select className="form-select" style={{ width: 180 }}
-          value={station} onChange={e => setStation(e.target.value)}>
-          <option value="">All Stations</option>
-          {stations.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select className="form-select" style={{ width: 160 }}
+            value={stationFilter} onChange={e => setStationFilter(e.target.value)}>
+            <option value="">All Stations</option>
+            {stations.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <button className="btn btn-sm btn-primary"   type="button" onClick={() => setShowRegister(true)}>📋 Register</button>
+          <button className="btn btn-sm btn-secondary" type="button" onClick={() => setShowDistrib(true)}>📦 Distribute</button>
+        </div>
       </div>
-      <div className="tab-bar" style={{ marginBottom: 14 }}>
-        {TABS.map(t => (
-          <button key={t.id} type="button"
-            className={`tab-btn${tab === t.id ? ' active' : ''}`}
-            onClick={() => setTab(t.id)}>{t.label}</button>
-        ))}
-      </div>
+
       <div className="tbl-wrap">
         <table>
           <thead>
             <tr>
               <th>Station</th>
-              <th style={{ textAlign: 'right' }}>Total Bags</th>
-              {tab === 'all' && <th style={{ textAlign: 'right' }}>Recently Weighed</th>}
-              {tab === 'all' && <th style={{ textAlign: 'right' }}>In Shed</th>}
-              {tab === 'all' && <th style={{ textAlign: 'right' }}>In Warehouse</th>}
-              <th style={{ textAlign: 'right' }}>Total Weight</th>
+              <th style={thStyle}>Total Bags</th>
+              <th style={thStyle}>Empty Bags at Shed</th>
+              <th style={thStyle}>Empty Bags at Warehouse</th>
+              <th style={thStyle}>Distributed to Farmers</th>
+              <th style={thStyle}>Weighed & Stored in Shed</th>
+              <th style={thStyle}>Weighed & Stored in Warehouse</th>
+              <th style={thStyle}>Still to Arrive at Station</th>
             </tr>
           </thead>
           <tbody>
             {byStation.map(r => (
               <tr key={r.stationId}>
                 <td style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{r.stationId}</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{r.bags}</td>
-                {tab === 'all' && <td style={{ textAlign: 'right', color: 'var(--amber)' }}>{r.weighed}</td>}
-                {tab === 'all' && <td style={{ textAlign: 'right', color: 'var(--teal)' }}>{r.shed}</td>}
-                {tab === 'all' && <td style={{ textAlign: 'right', color: 'var(--purple)' }}>{r.warehouse}</td>}
-                <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--amber)' }}>{fmt.kg(r.weight)}</td>
+                <td style={{ ...tdRight, fontWeight: 700, color: 'var(--teal)' }}>{r.total}</td>
+                <td style={{ ...tdRight, color: 'var(--amber)' }}>{r.emptyShed || '—'}</td>
+                <td style={{ ...tdRight, color: 'var(--purple)' }}>{r.emptyWarehouse || '—'}</td>
+                <td style={{ ...tdRight, color: 'var(--green)' }}>{r.distributed || '—'}</td>
+                <td style={{ ...tdRight, color: 'var(--teal)' }}>{r.weighedShed || '—'}</td>
+                <td style={{ ...tdRight, color: 'var(--gold)' }}>{r.weighedWarehouse || '—'}</td>
+                <td style={{ ...tdRight, color: 'var(--text-muted)' }}>{r.pending || '—'}</td>
               </tr>
             ))}
             {byStation.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No bags found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No bags found</td></tr>
             )}
           </tbody>
           {byStation.length > 0 && (
             <tfoot>
               <tr>
                 <td style={{ fontWeight: 700 }}>Total</td>
-                <td style={{ textAlign: 'right', fontWeight: 700 }}>{totalBags}</td>
-                {tab === 'all' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{byStation.reduce((s,r)=>s+r.weighed,0)}</td>}
-                {tab === 'all' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{byStation.reduce((s,r)=>s+r.shed,0)}</td>}
-                {tab === 'all' && <td style={{ textAlign: 'right', fontWeight: 700 }}>{byStation.reduce((s,r)=>s+r.warehouse,0)}</td>}
-                <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{fmt.kg(totalWeight)}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.total}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.emptyShed}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.emptyWarehouse}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.distributed}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.weighedShed}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.weighedWarehouse}</td>
+                <td style={{ ...tdRight, fontWeight: 700 }}>{totals.pending}</td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+
+      {/* ── Register Modal ── */}
+      {showRegister && (
+        <div className="modal-overlay" onClick={() => setShowRegister(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-head">
+              <div className="modal-title">📋 Register Bags</div>
+              <button className="modal-close" type="button" onClick={() => setShowRegister(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <div className="form-label">Bag Type / Description</div>
+                <input className="form-input" placeholder="e.g. Hessian 50kg sack"
+                  value={regBagType} onChange={e => setRegBagType(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <div className="form-label">Assign to Station</div>
+                <select className="form-select" value={regStation} onChange={e => setRegStation(e.target.value)}>
+                  <option value="">— Select Station —</option>
+                  {stations.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="form-label" style={{ marginBottom: 8, fontWeight: 700 }}>Serial Number Range</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">Prefix (optional)</div>
+                  <input className="form-input" placeholder="e.g. TRW-"
+                    value={regPrefix} onChange={e => setRegPrefix(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">Start No.</div>
+                  <input className="form-input" placeholder="0001"
+                    value={regStart} onChange={e => setRegStart(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">End No.</div>
+                  <input className="form-input" placeholder="0150"
+                    value={regEnd} onChange={e => setRegEnd(e.target.value)} />
+                </div>
+              </div>
+              {regPreview && (
+                <div style={{ background: 'var(--teal-dim)', border: '1px solid var(--teal)', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: 'var(--teal)', marginTop: 8 }}>
+                  ✅ Will register <strong>{regPreview.count.toLocaleString()} bags</strong>: {regPreview.first} → {regPreview.last}
+                </div>
+              )}
+              {regStart && regEnd && !regPreview && (
+                <div style={{ background: 'var(--red-dim)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: 'var(--red)', marginTop: 8 }}>
+                  ⚠️ End number must be greater than or equal to start number.
+                </div>
+              )}
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost" type="button" onClick={() => setShowRegister(false)}>Cancel</button>
+              <button className="btn btn-primary" type="button"
+                disabled={!regPreview || !regStation}
+                onClick={() => {
+                  // TODO: write batch of regPreview.count docs to Firestore
+                  alert(`Registered ${regPreview.count} bags (${regPreview.first} → ${regPreview.last}) for station ${regStation}.\n\nFirestore write goes here.`);
+                  setShowRegister(false);
+                }}>
+                Register {regPreview ? `${regPreview.count} Bags` : 'Bags'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Distribute Modal ── */}
+      {showDistrib && (
+        <div className="modal-overlay" onClick={() => setShowDistrib(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-head">
+              <div className="modal-title">📦 Distribute Bags</div>
+              <button className="modal-close" type="button" onClick={() => setShowDistrib(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">From (Station / HQ)</div>
+                  <select className="form-select" value={distFrom} onChange={e => setDistFrom(e.target.value)}>
+                    <option value="">— Select —</option>
+                    <option value="HQ">Head Office (HQ)</option>
+                    {stations.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">To (Station)</div>
+                  <select className="form-select" value={distTo} onChange={e => setDistTo(e.target.value)}>
+                    <option value="">— Select —</option>
+                    {stations.filter(s => s !== distFrom).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-label" style={{ marginBottom: 8, fontWeight: 700 }}>Bag Serial Range</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">Serial Start</div>
+                  <input className="form-input" placeholder="e.g. TRW-0001"
+                    value={distSerialStart} onChange={e => setDistSerialStart(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">Serial End</div>
+                  <input className="form-input" placeholder="e.g. TRW-0050"
+                    value={distSerialEnd} onChange={e => setDistSerialEnd(e.target.value)} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+                  <div className="form-label">Distribution Date</div>
+                  <input type="date" className="form-input" value={distDate} onChange={e => setDistDate(e.target.value)} />
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <div className="form-label">Notes</div>
+                <textarea className="form-input" rows={2} placeholder="Optional notes…"
+                  value={distNotes} onChange={e => setDistNotes(e.target.value)}
+                  style={{ resize: 'vertical' }} />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost" type="button" onClick={() => setShowDistrib(false)}>Cancel</button>
+              <button className="btn btn-primary" type="button"
+                disabled={!distFrom || !distTo || !distSerialStart}
+                onClick={() => {
+                  // TODO: write distribution record to Firestore
+                  alert(`Distribution recorded:\n${distSerialStart} → ${distSerialEnd || distSerialStart}\nFrom: ${distFrom} → To: ${distTo}\nDate: ${distDate}\n\nFirestore write goes here.`);
+                  setShowDistrib(false);
+                }}>
+                Confirm Distribution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* 6. Ready to Ship — by station/island */
+/* 6. Shed/Warehouse — Ready to Ship */
 function DetailReadyToShip({ stock, onBack }) {
-  const [island, setIsland] = useState('');
+  const [island,  setIsland]  = useState('');
+  const [station, setStation] = useState('');
 
-  const ready = useMemo(() => stock.filter(s => s.status === 'ready_to_ship'), [stock]);
+  const ready   = useMemo(() => stock.filter(s => s.status === 'ready_to_ship'), [stock]);
   const islands = useMemo(() => [...new Set(ready.map(s => s.island || s.stationId).filter(Boolean))].sort(), [ready]);
 
-  const filtered = useMemo(() =>
+  const filteredByIsland = useMemo(() =>
     ready.filter(s => !island || (s.island || s.stationId) === island), [ready, island]);
+
+  const stationsForIsland = useMemo(() =>
+    [...new Set(filteredByIsland.map(s => s.stationId).filter(Boolean))].sort(), [filteredByIsland]);
+
+  const filtered = useMemo(() =>
+    filteredByIsland.filter(s => !station || s.stationId === station), [filteredByIsland, station]);
 
   const byStation = useMemo(() => {
     const grp = groupBy(filtered, 'stationId');
@@ -635,19 +875,38 @@ function DetailReadyToShip({ stock, onBack }) {
   const totalBags   = byStation.reduce((s, r) => s + r.bags,   0);
   const totalWeight = byStation.reduce((s, r) => s + r.weight, 0);
 
+  const subheader = station
+    ? `Bags at Warehouse of ${station} Station`
+    : island
+    ? `Bags at Warehouse — ${island} Island`
+    : 'Bags at Warehouse — by Station';
+
+  // Reset station if island changes and station no longer valid
+  useEffect(() => {
+    if (station && !stationsForIsland.includes(station)) setStation('');
+  }, [island, stationsForIsland, station]);
+
   return (
     <div>
-      <Breadcrumb label="Ready to Ship" onBack={onBack} />
+      <Breadcrumb label="Shed/Warehouse" onBack={onBack} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Bags Ready to Ship — by Station</div>
+          <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{subheader}</div>
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{totalBags} bags · {fmt.kg(totalWeight)} awaiting vessel loading</div>
         </div>
-        <select className="form-select" style={{ width: 180 }}
-          value={island} onChange={e => setIsland(e.target.value)}>
-          <option value="">All Islands</option>
-          {islands.map(i => <option key={i} value={i}>{i}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <select className="form-select" style={{ width: 150 }}
+            value={island} onChange={e => { setIsland(e.target.value); setStation(''); }}>
+            <option value="">All Islands</option>
+            {islands.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+          <select className="form-select" style={{ width: 150 }}
+            value={station} onChange={e => setStation(e.target.value)}
+            disabled={stationsForIsland.length === 0}>
+            <option value="">All Stations</option>
+            {stationsForIsland.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
       </div>
       <div className="tbl-wrap">
         <table>
@@ -879,8 +1138,8 @@ export default function Dashboard({ onNavigate, dashBackRef }) {
         <ClickCard id="cpr_weight"   icon="⚖️"  value={fmt.kg(totalCPRWeight)}  label="Total CPR Weight"    accent="var(--gold)"         sub={`${[...new Set(cprList.map(c=>c.cooperative_name).filter(Boolean))].length} cooperatives`} hint />
         <ClickCard id="twc_records"  icon="🚢" value={twcList.length}          label="Total TWC Records"   accent="var(--purple)"       sub={`${totalSacks.toLocaleString()} sacks shipped`} hint />
         <ClickCard id="inspectors"   icon="👤" value={inspectors.length}       label="Inspectors"          accent="var(--green)"        sub="With assigned stations" hint />
-        <ClickCard id="bags_storage" icon="🧺" value={inShed.length + inWarehouse.length} label="Bags in Storage" accent="var(--amber)" sub={fmt.kg(shedWeight + warehouseWeight)} hint />
-        <ClickCard id="ready_ship"   icon="✅" value={readyToShip.length}      label="Ready to Ship"       accent="var(--green)"        sub={fmt.kg(shipWeight)} hint />
+        <ClickCard id="bags_storage" icon="🛍️" value={inShed.length + inWarehouse.length} label="Sacks/Bags Register" accent="var(--amber)" sub={fmt.kg(shedWeight + warehouseWeight)} hint />
+        <ClickCard id="ready_ship"   icon="🏭" value={readyToShip.length}      label="Shed/Warehouse"      accent="var(--green)"        sub={fmt.kg(shipWeight)} hint />
 
         {/* Registered Farmers → opens Farmers Registry section */}
         <button
