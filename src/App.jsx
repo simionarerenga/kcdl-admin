@@ -197,6 +197,10 @@ export default function App() {
   const sectionRef = useRef(section);
   useEffect(() => { sectionRef.current = section; }, [section]);
 
+  // Dashboard can register a "close detail" callback here so the hardware
+  // back button returns to the Dashboard grid instead of triggering exit.
+  const dashBackRef = useRef(null);
+
   /* ── Auth listener ── */
   useEffect(() => {
     return onAuthStateChanged(auth, async firebaseUser => {
@@ -209,11 +213,14 @@ export default function App() {
             const p = snap.data();
             if (p.role === 'admin' || p.role === 'hq' || !p.role) {
               setProfile(p); setUser(firebaseUser);
+              // Jump straight to Dashboard when opening the app signed-in
+              setSection(prev => prev === null ? 'dashboard' : prev);
             } else {
               setUser(firebaseUser); setAccessDenied(true);
             }
           } else {
             setProfile(null); setUser(firebaseUser);
+            setSection(prev => prev === null ? 'dashboard' : prev);
           }
         } catch (e) {
           setAuthError(e.message); setUser(firebaseUser);
@@ -238,8 +245,14 @@ export default function App() {
             // Already on home → go to Dashboard
             setSection('dashboard');
           } else if (cur === 'dashboard') {
-            // On Dashboard → show exit confirm
-            setShowExit(true);
+            // If a Dashboard detail screen is open, close it first
+            if (dashBackRef.current) {
+              dashBackRef.current();
+              dashBackRef.current = null;
+            } else {
+              // On Dashboard main view → show exit confirm
+              setShowExit(true);
+            }
           } else {
             // On any other section → go home
             setSection(null);
@@ -253,7 +266,12 @@ export default function App() {
           if (cur === null) {
             setSection('dashboard');
           } else if (cur === 'dashboard') {
-            setShowExit(true);
+            if (dashBackRef.current) {
+              dashBackRef.current();
+              dashBackRef.current = null;
+            } else {
+              setShowExit(true);
+            }
           } else {
             setSection(null);
           }
@@ -332,7 +350,12 @@ export default function App() {
 
       <div className="page-body">
         {SectionComp ? (
-          <SectionComp onNavigate={navigate} user={user} profile={profile} />
+          <SectionComp
+            onNavigate={navigate}
+            user={user}
+            profile={profile}
+            dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
+          />
         ) : (
           <HomeScreen onNavigate={navigate} email={user.email} />
         )}
