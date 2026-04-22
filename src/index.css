@@ -474,8 +474,8 @@ html, body, #root {
 /* Stat grid */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   margin-bottom: 20px;
   max-width: 100%;
 }
@@ -484,11 +484,15 @@ html, body, #root {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
+  padding: 16px 14px;
   position: relative;
   overflow: hidden;
   transition: box-shadow 0.2s;
   box-shadow: var(--shadow-sm);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .stat-card::before {
@@ -1084,10 +1088,11 @@ tbody tr:hover   { background: var(--teal-dim); }
 }
 
 .splash-logo {
-  width: 80px; height: 80px;
-  border-radius: 16px;
-  object-fit: cover;
-  box-shadow: 0 0 0 8px var(--teal-dim);
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .splash-text {
@@ -1139,11 +1144,12 @@ tbody tr:hover   { background: var(--teal-dim); }
 .login-header { text-align: center; margin-bottom: 32px; }
 
 .login-logo {
-  width: 64px; height: 64px;
-  border-radius: 12px;
-  object-fit: cover;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 0;
   margin-bottom: 16px;
-  box-shadow: 0 0 0 6px var(--teal-dim);
+  box-shadow: none;
 }
 
 .login-title { font-family: var(--font-head); font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
@@ -1167,7 +1173,7 @@ tbody tr:hover   { background: var(--teal-dim); }
 
 @media (max-width: 600px) {
   .home-tiles        { grid-template-columns: 1fr; }
-  .stat-grid         { grid-template-columns: 1fr 1fr; }
+  .stat-grid         { grid-template-columns: 1fr 1fr; } /* always 2 col */
   .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
   .two-col, .three-col     { grid-template-columns: 1fr; }
   .report-preview    { padding: 16px; }
@@ -1177,5 +1183,5 @@ tbody tr:hover   { background: var(--teal-dim); }
 }
 
 @media (max-width: 400px) {
-  .stat-grid { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: 1fr 1fr; } /* keep 2 col even small */
 }
