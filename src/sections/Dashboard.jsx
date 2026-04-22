@@ -122,12 +122,25 @@ function Breadcrumb({ label, onBack }) {
   }, [onBack]);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-      <button type="button" className="btn btn-sm btn-ghost" onClick={onBack} style={{ gap: 5 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+      <button
+        type="button"
+        className="btn btn-sm btn-ghost"
+        onClick={onBack}
+        style={{ gap: 4, color: 'var(--teal)', fontFamily: 'var(--font-head)', fontWeight: 600 }}
+      >
         ← Dashboard
       </button>
-      <span style={{ color: 'var(--text-muted)' }}>›</span>
-      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{label}</span>
+      <span style={{ color: 'var(--teal)', fontWeight: 700, fontSize: '1rem' }}>›</span>
+      <span style={{
+        fontFamily: 'var(--font-head)',
+        fontWeight: 800,
+        fontSize: '1.05rem',
+        color: 'var(--teal)',
+        letterSpacing: '-0.2px',
+      }}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -419,10 +432,16 @@ function DetailInspectors({ inspectors, onBack }) {
     const q = search.toLowerCase();
     return inspectors
       .filter(u => !q
-        || (u.email || '').toLowerCase().includes(q)
-        || (u.displayName || '').toLowerCase().includes(q)
-        || (u.island || '').toLowerCase().includes(q)
-        || (u.stationId || '').toLowerCase().includes(q))
+        || (u.email           || '').toLowerCase().includes(q)
+        || (u.displayName     || '').toLowerCase().includes(q)
+        || (u.name            || '').toLowerCase().includes(q)
+        || (u.island          || '').toLowerCase().includes(q)
+        || (u.stationId       || '').toLowerCase().includes(q)
+        || (u.stationName     || '').toLowerCase().includes(q)
+        || (u.cooperative     || '').toLowerCase().includes(q)
+        || (u.cooperativeName || '').toLowerCase().includes(q)
+        || (u.village         || '').toLowerCase().includes(q)
+        || (u.phone           || '').includes(q))
       .sort((a, b) => (a.island || '').localeCompare(b.island || ''));
   }, [inspectors, search]);
 
@@ -447,29 +466,39 @@ function DetailInspectors({ inspectors, onBack }) {
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
               <th>Island</th>
+              <th>Cooperative Assigned to</th>
+              <th>Full Name</th>
+              <th>Phone</th>
+              <th>Email</th>
               <th>Station ID</th>
               <th>Role</th>
+              <th>Village</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(u => (
               <tr key={u.id}>
+                <td style={{ fontWeight: 600 }}>{u.island || '—'}</td>
+                <td>{u.cooperativeName || u.cooperative || '—'}</td>
                 <td style={{ fontWeight: 600 }}>{u.displayName || u.name || '—'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}>{u.phone || '—'}</td>
                 <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{u.email || '—'}</td>
-                <td>{u.island || '—'}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>{u.stationId || '—'}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
+                  {u.stationId
+                    ? <>{u.stationId}{u.stationName ? <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.7rem' }}>{u.stationName}</span> : null}</>
+                    : '—'}
+                </td>
                 <td>
                   <span className={`tbl-badge ${u.role === 'admin' || u.role === 'hq' ? 'badge-teal' : 'badge-muted'}`}>
                     {u.role || 'inspector'}
                   </span>
                 </td>
+                <td>{u.village || '—'}</td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No inspectors found</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No inspectors found</td></tr>
             )}
           </tbody>
         </table>
@@ -869,47 +898,50 @@ export default function Dashboard({ onNavigate, dashBackRef }) {
           <div style={{ marginTop: 4, fontSize: '0.68rem', color: 'var(--teal)', fontWeight: 600 }}>Tap to view registry →</div>
         </button>
 
-        {/* CPR Weight by Island — square card spanning full grid width */}
+        {/* CPR Weight by Island — same-size square card in the 2-col grid */}
         <div
           className="stat-card"
           style={{
-            gridColumn: '1 / -1',
-            aspectRatio: '1 / 1',
             '--accent-color': 'var(--gold)',
-            padding: '16px 14px',
+            padding: '12px 10px',
             display: 'flex',
             flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexShrink: 0 }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-head)', fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                ⚖️ CPR Weight by Island
-              </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                Cumulative totals across all time
-              </div>
+          <div style={{ marginBottom: 6, flexShrink: 0 }}>
+            <div style={{ fontFamily: 'var(--font-head)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              ⚖️ CPR by Island
             </div>
-            <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('analytics')} type="button" style={{ flexShrink: 0 }}>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => onNavigate('analytics')}
+              type="button"
+              style={{ padding: '2px 0', fontSize: '0.65rem', color: 'var(--teal)', fontWeight: 600 }}
+            >
               Analytics →
             </button>
           </div>
-          <div className="mini-bar-wrap" style={{ flex: 1, overflowY: 'auto' }}>
-            {islandWeights.slice(0, 8).map((row, i) => (
-              <div key={row.island} className="mini-bar-row">
-                <div className="mini-bar-label" title={row.island}>{row.island}</div>
-                <div className="mini-bar-track">
-                  <div className="mini-bar-fill" style={{
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {islandWeights.slice(0, 4).map((row, i) => (
+              <div key={row.island} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }} title={row.island}>{row.island}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--gold)', fontWeight: 700 }}>{fmt.kg(row.weight)}</span>
+                </div>
+                <div style={{ height: 5, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 99,
                     width: `${Math.min(100, (row.weight / maxIslandWeight) * 100)}%`,
                     background: ['var(--teal)','var(--gold)','var(--purple)','var(--green)','var(--amber)'][i % 5],
+                    transition: 'width 0.6s ease',
                   }} />
                 </div>
-                <div className="mini-bar-val">{fmt.kg(row.weight)}</div>
               </div>
             ))}
             {islandWeights.length === 0 && (
-              <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                No CPR data yet
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: 8 }}>
+                No data
               </div>
             )}
           </div>
