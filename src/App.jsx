@@ -192,6 +192,7 @@ export default function App() {
   const [section,      setSection]      = useState(null); // null = home
   const [authError,    setAuthError]    = useState('');
   const [showExit,     setShowExit]     = useState(false);
+  const [reportInit,   setReportInit]   = useState(null); // pre-selected report id
 
   // Keep a ref so the back-button handler always sees the latest section
   const sectionRef = useRef(section);
@@ -298,11 +299,16 @@ export default function App() {
     setAccessDenied(false);
   }
 
-  function navigate(id) {
+  function navigate(id, reportId) {
     // If going to Dashboard, close any open detail screen first
     if (id === 'dashboard' && dashBackRef.current) {
       dashBackRef.current();
       dashBackRef.current = null;
+    }
+    if (id === 'reports' && reportId) {
+      setReportInit(reportId);
+    } else if (id !== 'reports') {
+      setReportInit(null);
     }
     setSection(id || null);
   }
@@ -362,6 +368,8 @@ export default function App() {
             user={user}
             profile={profile}
             dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
+            initialReport={section === 'reports' ? reportInit : undefined}
+            onBack={section === 'reports' ? () => navigate('reports') : undefined}
           />
         ) : (
           <HomeScreen onNavigate={navigate} email={user.email} />
