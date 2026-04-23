@@ -352,20 +352,38 @@ function StockReport({ stock }) {
 /* ═══════════════════════════════════════════════════════════════
    Main Reports Centre component
 ═══════════════════════════════════════════════════════════════ */
-export default function ReportsCentre() {
+export default function ReportsCentre({ initialReport }) {
   const [cprs,    setCprs]    = useState([]);
   const [twcs,    setTwcs]    = useState([]);
   const [stock,   setStock]   = useState([]);
   const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [view,       setView]       = useState('list');   // 'list' | 'detail'
-  const [selected,   setSelected]   = useState(null);
+  const [view,       setView]       = useState(() => initialReport ? 'detail' : 'list');
+  const [selected,   setSelected]   = useState(() => initialReport || null);
   const [dateFrom,   setDateFrom]   = useState('');
   const [dateTo,     setDateTo]     = useState('');
   const [singleDate, setSingleDate] = useState(new Date().toISOString().slice(0, 10));
+  const [islandFilter, setIslandFilter] = useState(''); // '' = All Islands
 
   const printRef = useRef(null);
+
+  // When initialReport changes (navigated from Dashboard dropdown), open it
+  useEffect(() => {
+    if (initialReport) {
+      setSelected(initialReport);
+      setView('detail');
+    }
+  }, [initialReport]);
+
+  // Hardware / browser back button: detail → list
+  useEffect(() => {
+    if (view !== 'detail') return;
+    window.history.pushState({ rcDetail: true }, '');
+    function onPop() { setView('list'); }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [view]);
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'cprEntries'),  s => setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -374,6 +392,17 @@ export default function ReportsCentre() {
     const u4 = onSnapshot(collection(db, 'farmers'),     s => setFarmers(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => { u1(); u2(); u3(); u4(); };
   }, []);
+
+  // Derive all known islands from data
+  const allIslands = useMemo(() => {
+    const set = new Set([
+      ...cprs.map(c => c.island),
+      ...twcs.map(t => t.island),
+      ...stock.map(s => s.island),
+      ...farmers.map(f => f.island),
+    ].filter(Boolean));
+    return [...set].sort();
+  }, [cprs, twcs, stock, farmers]);
 
   function openReport(id) {
     setSelected(id);
@@ -410,22 +439,27 @@ export default function ReportsCentre() {
 
   const reportEl = useMemo(() => {
     if (!selected) return null;
+    // Apply island filter to source data
+    const filtCprs    = islandFilter ? cprs.filter(c => c.island === islandFilter)    : cprs;
+    const filtTwcs    = islandFilter ? twcs.filter(t => t.island === islandFilter)    : twcs;
+    const filtStock   = islandFilter ? stock.filter(s => s.island === islandFilter)   : stock;
+    const filtFarmers = islandFilter ? farmers.filter(f => f.island === islandFilter) : farmers;
     switch (selected) {
-      case 'cpr_summary':    return <CPRSummaryReport cprs={cprs} from={dateFrom} to={dateTo} />;
+      case 'cpr_summary':    return <CPRSummaryReport cprs={filtCprs} from={dateFrom} to={dateTo} />;
       case 'twc_summary':    return <div><div className="report-section-title">TWC Summary</div></div>;
-      case 'island_summary': return <IslandSummaryReport cprs={cprs} twcs={twcs} from={dateFrom} to={dateTo} />;
-      case 'daily_report':   return <DailyReport cprs={cprs} twcs={twcs} stock={stock} date={singleDate} />;
-      case 'monthly_report': return <MonthlyReport cprs={cprs} twcs={twcs} />;
-      case 'cooperative_report': return <CooperativeReport cprs={cprs} from={dateFrom} to={dateTo} />;
-      case 'stock_report':   return <StockReport stock={stock} />;
+      case 'island_summary': return <IslandSummaryReport cprs={filtCprs} twcs={filtTwcs} from={dateFrom} to={dateTo} />;
+      case 'daily_report':   return <DailyReport cprs={filtCprs} twcs={filtTwcs} stock={filtStock} date={singleDate} />;
+      case 'monthly_report': return <MonthlyReport cprs={filtCprs} twcs={filtTwcs} />;
+      case 'cooperative_report': return <CooperativeReport cprs={filtCprs} from={dateFrom} to={dateTo} />;
+      case 'stock_report':   return <StockReport stock={filtStock} />;
       case 'farmer_report':
         return (
           <div>
-            <div className="report-section-title">Farmer Registry — {farmers.length} registered farmers</div>
+            <div className="report-section-title">Farmer Registry — {filtFarmers.length} registered farmers</div>
             <table className="report-table">
               <thead><tr><th>Farmer ID</th><th>Name</th><th>ID Card</th><th>Village</th><th>Gender</th><th>Phone</th><th>Station</th></tr></thead>
               <tbody>
-                {[...farmers].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(f => (
+                {[...filtFarmers].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(f => (
                   <tr key={f.id}>
                     <td style={{ fontWeight: 700 }}>{f.farmerId || '—'}</td>
                     <td>{f.name || '—'}</td><td>{f.idCard || '—'}</td>
@@ -438,7 +472,7 @@ export default function ReportsCentre() {
           </div>
         );
       case 'station_report': {
-        const byStn = groupBy(cprs, 'stationId');
+        const byStn = groupBy(filtCprs, 'stationId');
         return (
           <div>
             <div className="report-section-title">Station Activity Report</div>
@@ -456,8 +490,8 @@ export default function ReportsCentre() {
               <tfoot>
                 <tr>
                   <td style={{ fontWeight: 700 }}>TOTAL</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{cprs.length}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{sumField(cprs, 'total_weight_cpr').toLocaleString('en', { minimumFractionDigits: 2 })}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{filtCprs.length}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{sumField(filtCprs, 'total_weight_cpr').toLocaleString('en', { minimumFractionDigits: 2 })}</td>
                 </tr>
               </tfoot>
             </table>
@@ -465,7 +499,7 @@ export default function ReportsCentre() {
         );
       }
       case 'shipment_report': {
-        const ready = stock.filter(s => s.status === 'ready_to_ship' || s.status === 'shipped');
+        const ready = filtStock.filter(s => s.status === 'ready_to_ship' || s.status === 'shipped');
         return (
           <div>
             <div className="report-section-title">Shipment Manifest — {ready.length} bags · {fmt.kg(sumField(ready, 'stationWeight'))}</div>
@@ -495,7 +529,7 @@ export default function ReportsCentre() {
       }
       default: return <div style={{ color: '#888', padding: 30, textAlign: 'center' }}>Report coming soon.</div>;
     }
-  }, [selected, cprs, twcs, stock, farmers, dateFrom, dateTo, singleDate]);
+  }, [selected, cprs, twcs, stock, farmers, dateFrom, dateTo, singleDate, islandFilter]);
 
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
 
@@ -573,6 +607,20 @@ export default function ReportsCentre() {
           <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', marginRight: 'auto' }}>
             {selInfo?.icon} {selInfo?.label}
           </div>
+
+          {/* Island filter — always visible */}
+          <select
+            className="form-select"
+            style={{ width: 'auto', minWidth: 140, fontSize: '0.83rem' }}
+            value={islandFilter}
+            onChange={e => setIslandFilter(e.target.value)}
+          >
+            <option value="">🏝️ All Islands</option>
+            {allIslands.map(isl => (
+              <option key={isl} value={isl}>{isl}</option>
+            ))}
+          </select>
+
           {selected === 'daily_report' && (
             <>
               <label className="form-label" style={{ margin: 0 }}>Date:</label>
