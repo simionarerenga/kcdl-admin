@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -88,21 +88,42 @@ function ExitModal({ onStay, onExit }) {
             Are you sure you want to close the app?
           </p>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ flex: 1, justifyContent: 'center' }}
-              onClick={onStay}
-            >
+            <button type="button" className="btn btn-secondary"
+              style={{ flex: 1, justifyContent: 'center' }} onClick={onStay}>
               Stay
             </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              style={{ flex: 1, justifyContent: 'center' }}
-              onClick={onExit}
-            >
+            <button type="button" className="btn btn-danger"
+              style={{ flex: 1, justifyContent: 'center' }} onClick={onExit}>
               Exit App
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sign Out Confirm Modal ── */
+function SignOutModal({ onCancel, onConfirm }) {
+  return (
+    <div className="modal-overlay" style={{ zIndex: 999 }}>
+      <div className="modal-box" style={{ maxWidth: 320, textAlign: 'center' }}>
+        <div className="modal-body" style={{ padding: '32px 24px 24px' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🔐</div>
+          <div className="modal-title" style={{ marginBottom: 10, fontSize: '1.1rem' }}>
+            Sign Out?
+          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 24 }}>
+            Are you sure you want to sign out of KCDL Admin?
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="btn btn-secondary"
+              style={{ flex: 1, justifyContent: 'center' }} onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-danger"
+              style={{ flex: 1, justifyContent: 'center' }} onClick={onConfirm}>
+              Sign Out
             </button>
           </div>
         </div>
@@ -132,56 +153,6 @@ function AccessDenied({ email, onSignOut }) {
   );
 }
 
-/* ── Home Screen ── */
-function HomeScreen({ onNavigate, email }) {
-  const initials = (email || 'HQ').slice(0, 2).toUpperCase();
-  const greeting = (() => {
-    const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  })();
-  const dateStr = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
-
-  return (
-    <div className="home-screen">
-      <div className="home-hero">
-        <div className="home-hero-avatar">{initials}</div>
-        <div>
-          <div className="home-hero-greeting">{greeting}</div>
-          <div className="home-hero-title">KCDL Admin Portal</div>
-          <div className="home-hero-date">{dateStr} · HQ Tarawa</div>
-        </div>
-        <div className="dashboard-live-badge" style={{ marginLeft: 'auto' }}>
-          <div className="live-dot" />
-          Live · Firebase
-        </div>
-      </div>
-
-      {SECTIONS.map(group => (
-        <div key={group.group} className="home-group">
-          <div className="home-group-label">{group.group}</div>
-          <div className="home-tiles">
-            {group.items.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                className="home-tile"
-                onClick={() => onNavigate(item.id)}
-              >
-                <div className="home-tile-icon">{item.icon}</div>
-                <div className="home-tile-label">{item.label}</div>
-                <div className="home-tile-desc">{item.desc}</div>
-                <div className="home-tile-arrow">›</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ═══════════════════════════════════════
    Main App
 ═══════════════════════════════════════ */
@@ -189,18 +160,21 @@ export default function App() {
   const [user,         setUser]         = useState(undefined);
   const [profile,      setProfile]      = useState(null);
   const [accessDenied, setAccessDenied] = useState(false);
-  const [section,      setSection]      = useState(null); // null = home
+  const [section,      setSection]      = useState('dashboard'); // always starts at dashboard
   const [authError,    setAuthError]    = useState('');
   const [showExit,     setShowExit]     = useState(false);
-  const [reportInit,   setReportInit]   = useState(null); // pre-selected report id
+  const [showSignOut,  setShowSignOut]  = useState(false);
+  const [reportInit,   setReportInit]   = useState(null);
 
-  // Keep a ref so the back-button handler always sees the latest section
+  // Ref so back-button handler always sees latest section
   const sectionRef = useRef(section);
   useEffect(() => { sectionRef.current = section; }, [section]);
 
-  // Dashboard can register a "close detail" callback here so the hardware
-  // back button returns to the Dashboard grid instead of triggering exit.
+  // Dashboard registers a "close detail" callback here
   const dashBackRef = useRef(null);
+
+  // Reports Centre registers a "go back to list" callback here
+  const reportsBackRef = useRef(null);
 
   /* ── Auth listener ── */
   useEffect(() => {
@@ -214,14 +188,13 @@ export default function App() {
             const p = snap.data();
             if (p.role === 'admin' || p.role === 'hq' || !p.role) {
               setProfile(p); setUser(firebaseUser);
-              // Jump straight to Dashboard when opening the app signed-in
-              setSection(prev => prev === null ? 'dashboard' : prev);
+              setSection('dashboard');
             } else {
               setUser(firebaseUser); setAccessDenied(true);
             }
           } else {
             setProfile(null); setUser(firebaseUser);
-            setSection(prev => prev === null ? 'dashboard' : prev);
+            setSection('dashboard');
           }
         } catch (e) {
           setAuthError(e.message); setUser(firebaseUser);
@@ -232,51 +205,49 @@ export default function App() {
     });
   }, []);
 
-  /* ── Android hardware back button ── */
+  /* ── Back button handler ── */
   useEffect(() => {
-    // Capacitor back button (Android)
     let removeListener = null;
 
     async function setupBackButton() {
+      function handleBack() {
+        const cur = sectionRef.current;
+
+        if (cur === 'reports') {
+          // If detail view is open inside Reports Centre, close it first
+          if (reportsBackRef.current) {
+            reportsBackRef.current();
+            reportsBackRef.current = null;
+          } else {
+            // Reports Centre list → go to Dashboard
+            setSection('dashboard');
+          }
+          return;
+        }
+
+        if (cur === 'dashboard') {
+          // If a Dashboard detail card is open, close it first
+          if (dashBackRef.current) {
+            dashBackRef.current();
+            dashBackRef.current = null;
+          } else {
+            // Dashboard main view → show exit confirm
+            setShowExit(true);
+          }
+          return;
+        }
+
+        // Any other section → back to Dashboard
+        setSection('dashboard');
+      }
+
       try {
         const { App: CapApp } = await import('@capacitor/app');
-        const handle = await CapApp.addListener('backButton', () => {
-          const cur = sectionRef.current;
-          if (cur === null) {
-            // Already on home → go to Dashboard
-            setSection('dashboard');
-          } else if (cur === 'dashboard') {
-            // If a Dashboard detail screen is open, close it first
-            if (dashBackRef.current) {
-              dashBackRef.current();
-              dashBackRef.current = null;
-            } else {
-              // On Dashboard main view → show exit confirm
-              setShowExit(true);
-            }
-          } else {
-            // On any other section → go home
-            setSection(null);
-          }
-        });
+        const handle = await CapApp.addListener('backButton', handleBack);
         removeListener = () => handle.remove();
       } catch {
-        // Not running in Capacitor (web/dev) — fall back to browser popstate
-        const onPop = () => {
-          const cur = sectionRef.current;
-          if (cur === null) {
-            setSection('dashboard');
-          } else if (cur === 'dashboard') {
-            if (dashBackRef.current) {
-              dashBackRef.current();
-              dashBackRef.current = null;
-            } else {
-              setShowExit(true);
-            }
-          } else {
-            setSection(null);
-          }
-        };
+        // Web/dev fallback — popstate
+        const onPop = () => handleBack();
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', onPop);
         removeListener = () => window.removeEventListener('popstate', onPop);
@@ -287,20 +258,20 @@ export default function App() {
     return () => { if (removeListener) removeListener(); };
   }, []);
 
-  /* ── Push a history entry whenever section changes so browser back fires ── */
+  /* ── Push history entry on section change ── */
   useEffect(() => {
     window.history.pushState(null, '', window.location.href);
   }, [section]);
 
   async function handleSignOut() {
     await signOut(auth);
-    setSection(null);
+    setSection('dashboard');
     setProfile(null);
     setAccessDenied(false);
+    setShowSignOut(false);
   }
 
   function navigate(id, reportId) {
-    // If going to Dashboard, close any open detail screen first
     if (id === 'dashboard' && dashBackRef.current) {
       dashBackRef.current();
       dashBackRef.current = null;
@@ -310,14 +281,14 @@ export default function App() {
     } else if (id !== 'reports') {
       setReportInit(null);
     }
-    setSection(id || null);
+    setSection(id || 'dashboard');
   }
 
   function handleExitApp() {
     try {
       import('@capacitor/app').then(({ App: CapApp }) => CapApp.exitApp());
     } catch {
-      window.close(); // web fallback
+      window.close();
     }
   }
 
@@ -335,8 +306,8 @@ export default function App() {
   if (!user)        return <LoginScreen />;
   if (accessDenied) return <AccessDenied email={user.email} onSignOut={handleSignOut} />;
 
-  const SectionComp = section ? SECTION_MAP[section] : null;
-  const sectionMeta = section ? SECTION_LABEL[section] : null;
+  const SectionComp = SECTION_MAP[section] || Dashboard;
+  const sectionMeta = SECTION_LABEL[section] || null;
 
   return (
     <div className="app-shell">
@@ -347,11 +318,18 @@ export default function App() {
         />
       )}
 
+      {showSignOut && (
+        <SignOutModal
+          onCancel={() => setShowSignOut(false)}
+          onConfirm={handleSignOut}
+        />
+      )}
+
       <TopBar
         sectionMeta={sectionMeta}
-        onGoHome={() => setSection(null)}
+        onGoHome={() => navigate('dashboard')}
         onNavigate={navigate}
-        onSignOut={handleSignOut}
+        onSignOut={() => setShowSignOut(true)}
         email={user.email}
       />
 
@@ -362,18 +340,14 @@ export default function App() {
       )}
 
       <div className="page-body">
-        {SectionComp ? (
-          <SectionComp
-            onNavigate={navigate}
-            user={user}
-            profile={profile}
-            dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
-            initialReport={section === 'reports' ? reportInit : undefined}
-            onBack={section === 'reports' ? () => navigate('reports') : undefined}
-          />
-        ) : (
-          <HomeScreen onNavigate={navigate} email={user.email} />
-        )}
+        <SectionComp
+          onNavigate={navigate}
+          user={user}
+          profile={profile}
+          dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
+          initialReport={section === 'reports' ? reportInit : undefined}
+          reportsBackRef={section === 'reports' ? reportsBackRef : undefined}
+        />
       </div>
     </div>
   );
