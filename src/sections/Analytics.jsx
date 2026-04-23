@@ -1,5 +1,6 @@
 // src/sections/Analytics.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { fmt, sumField, groupBy } from '../utils/helpers';
@@ -97,29 +98,69 @@ function Breadcrumb({ label, onBack }) {
   );
 }
 
-/* ─── Dropdown ────────────────────────────────────────── */
+/* ─── Dropdown (portal-based — escapes overflow:hidden parents) ─── */
 function Dropdown({ trigger, children }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [pos,  setPos]  = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef(null);
+  const menuRef    = useRef(null);
+
+  // Position the portal menu relative to the trigger button
   useEffect(() => {
-    function onOut(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
-    if (open) document.addEventListener('mousedown', onOut);
-    return () => document.removeEventListener('mousedown', onOut);
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setPos({
+      top:   rect.bottom + window.scrollY + 6,
+      left:  rect.left   + window.scrollX,
+      width: rect.width,
+    });
   }, [open]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e) {
+      if (
+        triggerRef.current && triggerRef.current.contains(e.target)
+      ) return;
+      if (
+        menuRef.current && menuRef.current.contains(e.target)
+      ) return;
+      setOpen(false);
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [open]);
+
+  const menu = open && createPortal(
+    <div
+      ref={menuRef}
+      style={{
+        position: 'absolute',
+        top:      pos.top,
+        left:     pos.left,
+        minWidth: Math.max(pos.width, 240),
+        background:   'var(--surface)',
+        border:       '1.5px solid var(--border-mid)',
+        borderRadius: 10,
+        boxShadow:    'var(--shadow-lg)',
+        zIndex:       99999,
+        overflow:     'hidden',
+      }}
+    >
+      {typeof children === 'function' ? children(() => setOpen(false)) : children}
+    </div>,
+    document.body
+  );
+
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block', zIndex: 100 }}>
-      <div onClick={() => setOpen(o => !o)}>{trigger}</div>
-      {open && (
-        <div style={{
-          position: 'absolute', left: 0, top: 'calc(100% + 6px)',
-          background: 'var(--surface)', border: '1.5px solid var(--border-mid)',
-          borderRadius: 10, boxShadow: 'var(--shadow-lg)', zIndex: 9999,
-          minWidth: 240, overflow: 'hidden',
-        }}>
-          {typeof children === 'function' ? children(() => setOpen(false)) : children}
-        </div>
-      )}
-    </div>
+    <>
+      <div ref={triggerRef} style={{ display: 'inline-block' }}
+        onClick={() => setOpen(o => !o)}>
+        {trigger}
+      </div>
+      {menu}
+    </>
   );
 }
 
