@@ -1030,6 +1030,85 @@ function DetailFarmers({ farmers, onBack }) {
   );
 }
 
+/* ─── Generate Report dropdown menu ─────────────────── */
+const REPORT_MENU = [
+  { id: 'cpr_summary',        icon: '📋', label: 'CPR Summary' },
+  { id: 'twc_summary',        icon: '🚢', label: 'TWC Summary' },
+  { id: 'island_summary',     icon: '🏝️', label: 'Island Production' },
+  { id: 'station_report',     icon: '📡', label: 'Station Activity' },
+  { id: 'daily_report',       icon: '📅', label: 'Daily Operations' },
+  { id: 'monthly_report',     icon: '📆', label: 'Monthly Summary' },
+  { id: 'farmer_report',      icon: '👩‍🌾', label: 'Farmer Participation' },
+  { id: 'stock_report',       icon: '⚖️',  label: 'Stock Status' },
+  { id: 'shipment_report',    icon: '🛳️', label: 'Shipment Manifest' },
+  { id: 'cooperative_report', icon: '🤝', label: 'Cooperative Report' },
+];
+
+function GenerateReportMenu({ onNavigate }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    if (open) document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="btn btn-sm btn-primary"
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ gap: 6 }}
+      >
+        📑 Generate Report {open ? '▴' : '▾'}
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', right: 0, top: 'calc(100% + 6px)',
+          background: 'var(--surface)', border: '1.5px solid var(--border-mid)',
+          borderRadius: 12, boxShadow: 'var(--shadow-lg)', zIndex: 100,
+          minWidth: 230, overflow: 'hidden',
+          animation: 'fadeIn 0.12s ease',
+        }}>
+          <div style={{ padding: '8px 14px 6px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid var(--border)' }}>
+            Reports Centre
+          </div>
+          {REPORT_MENU.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onNavigate('reports', r.id);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 14px',
+                border: 'none', background: 'none', cursor: 'pointer',
+                textAlign: 'left', fontSize: '0.84rem',
+                color: 'var(--text-primary)',
+                borderBottom: '1px solid var(--border)',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--teal-dim)'; e.currentTarget.style.color = 'var(--teal)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            >
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>{r.icon}</span>
+              <span style={{ fontWeight: 500 }}>{r.label}</span>
+              <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: '0.8rem' }}>›</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════
    MAIN DASHBOARD
 ═══════════════════════════════════════════════════════ */
@@ -1126,9 +1205,7 @@ export default function Dashboard({ onNavigate, dashBackRef }) {
           <div className="dashboard-live-badge">
             <div className="live-dot" /> Live · Firebase
           </div>
-          <button className="btn btn-sm btn-primary" onClick={() => onNavigate('reports')} type="button">
-            📑 Generate Report
-          </button>
+          <GenerateReportMenu onNavigate={onNavigate} />
         </div>
       </div>
 
