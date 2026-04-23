@@ -107,13 +107,13 @@ function Dropdown({ trigger, children }) {
     return () => document.removeEventListener('mousedown', onOut);
   }, [open]);
   return (
-    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block', zIndex: 100 }}>
       <div onClick={() => setOpen(o => !o)}>{trigger}</div>
       {open && (
         <div style={{
           position: 'absolute', left: 0, top: 'calc(100% + 6px)',
           background: 'var(--surface)', border: '1.5px solid var(--border-mid)',
-          borderRadius: 10, boxShadow: 'var(--shadow-lg)', zIndex: 50,
+          borderRadius: 10, boxShadow: 'var(--shadow-lg)', zIndex: 9999,
           minWidth: 240, overflow: 'hidden',
         }}>
           {typeof children === 'function' ? children(() => setOpen(false)) : children}
@@ -407,7 +407,7 @@ export default function Analytics() {
       </div>
 
       {/* KPI cards — min-height to prevent text clipping */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 20 }}>
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)', marginBottom: 20 }}>
         {[
           { icon:'⚖️', val: fmt.kg(sumField(cprs,'total_weight_cpr')), lbl:'All-Time CPR Weight',  col:'var(--gold)'   },
           { icon:'🚢', val: fmt.kg(sumField(twcs,'total_weight_twc')), lbl:'All-Time TWC Weight',  col:'var(--purple)' },
