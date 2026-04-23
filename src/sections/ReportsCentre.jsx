@@ -352,7 +352,7 @@ function StockReport({ stock }) {
 /* ═══════════════════════════════════════════════════════════════
    Main Reports Centre component
 ═══════════════════════════════════════════════════════════════ */
-export default function ReportsCentre({ initialReport }) {
+export default function ReportsCentre({ initialReport, reportsBackRef }) {
   const [cprs,    setCprs]    = useState([]);
   const [twcs,    setTwcs]    = useState([]);
   const [stock,   setStock]   = useState([]);
@@ -375,6 +375,13 @@ export default function ReportsCentre({ initialReport }) {
       setView('detail');
     }
   }, [initialReport]);
+
+  // Register back-callback for App-level hardware back button
+  useEffect(() => {
+    if (reportsBackRef) {
+      reportsBackRef.current = view === 'detail' ? () => setView('list') : null;
+    }
+  }, [view, reportsBackRef]);
 
   // Hardware / browser back button: detail → list
   useEffect(() => {
