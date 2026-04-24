@@ -1,13 +1,12 @@
 // src/sections/Analytics.jsx
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { fmt, sumField, groupBy } from '../utils/helpers';
 
 const PALETTE = ['#007c91','#e8a000','#8b5cf6','#22c55e','#ef4444','#f59e0b','#00a5bf','#6366f1'];
 
-/* ─── Bar chart (horizontally scrollable) ────────────── */
+/* ─── Bar chart ──────────────────────────────────────── */
 function BarChart({ data, height = 180, valueKey = 'value', labelKey = 'label', color = '#007c91', valueFormatter = v => v }) {
   const max = Math.max(...data.map(d => d[valueKey]), 1);
   const barW = Math.max(44, Math.floor(300 / Math.max(data.length, 1)));
@@ -78,7 +77,7 @@ function DonutChart({ data, size = 150 }) {
   );
 }
 
-/* ─── Breadcrumb ─────────────────────────────────────── */
+/* ─── Breadcrumb + device-back support ───────────────── */
 function Breadcrumb({ label, onBack }) {
   useEffect(() => {
     window.history.pushState({ analyticsDetail: true }, '');
@@ -98,81 +97,14 @@ function Breadcrumb({ label, onBack }) {
   );
 }
 
-/* ─── Dropdown (portal-based — escapes overflow:hidden parents) ─── */
-function Dropdown({ trigger, children }) {
-  const [open, setOpen] = useState(false);
-  const [pos,  setPos]  = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef(null);
-  const menuRef    = useRef(null);
-
-  // Position the portal menu relative to the trigger button
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setPos({
-      top:   rect.bottom + window.scrollY + 6,
-      left:  rect.left   + window.scrollX,
-      width: rect.width,
-    });
-  }, [open]);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function onOutside(e) {
-      if (
-        triggerRef.current && triggerRef.current.contains(e.target)
-      ) return;
-      if (
-        menuRef.current && menuRef.current.contains(e.target)
-      ) return;
-      setOpen(false);
-    }
-    document.addEventListener('mousedown', onOutside);
-    return () => document.removeEventListener('mousedown', onOutside);
-  }, [open]);
-
-  const menu = open && createPortal(
-    <div
-      ref={menuRef}
-      style={{
-        position: 'absolute',
-        top:      pos.top,
-        left:     pos.left,
-        minWidth: Math.max(pos.width, 240),
-        background:   'var(--surface)',
-        border:       '1.5px solid var(--border-mid)',
-        borderRadius: 10,
-        boxShadow:    'var(--shadow-lg)',
-        zIndex:       99999,
-        overflow:     'hidden',
-      }}
-    >
-      {typeof children === 'function' ? children(() => setOpen(false)) : children}
-    </div>,
-    document.body
-  );
-
-  return (
-    <>
-      <div ref={triggerRef} style={{ display: 'inline-block' }}
-        onClick={() => setOpen(o => !o)}>
-        {trigger}
-      </div>
-      {menu}
-    </>
-  );
-}
-
-/* ═══════════════════════════
+/* ══════════════════════════════════════════
    DETAIL SCREENS
-═══════════════════════════ */
+══════════════════════════════════════════ */
 
 function DetailMonthlyTrend({ monthlyData, onBack }) {
   return (
     <div>
-      <Breadcrumb label="Monthly CPR Weight Trend" onBack={onBack} />
-      <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: 4 }}>Monthly CPR Weight Trend</div>
+      <Breadcrumb label="📅 Monthly CPR Weight Trend" onBack={onBack} />
       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>Last 12 months — kg</div>
       <div className="card" style={{ marginBottom: 16, overflowX: 'auto' }}>
         <BarChart data={monthlyData} height={200} color="var(--teal)" valueFormatter={v => (v/1000).toFixed(1)+'t'} />
@@ -209,11 +141,53 @@ function DetailMonthlyTrend({ monthlyData, onBack }) {
   );
 }
 
+function DetailIslandWeight({ islandData, onBack }) {
+  const total = islandData.reduce((s, d) => s + d.value, 0);
+  return (
+    <div>
+      <Breadcrumb label="🏝️ CPR Weight by Island" onBack={onBack} />
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>Cumulative CPR weight (kg) — top {islandData.length} islands</div>
+      <div className="card" style={{ marginBottom: 16, overflowX: 'auto' }}>
+        <BarChart data={islandData} height={200} color="var(--gold)" valueFormatter={v => (v/1000).toFixed(1)+'t'} />
+      </div>
+      <div className="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Island</th>
+              <th style={{ textAlign:'right' }}>Weight (kg)</th>
+              <th style={{ textAlign:'right' }}>% Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {islandData.map((r, i) => (
+              <tr key={r.label}>
+                <td style={{ color:'var(--text-muted)', fontSize:'0.78rem' }}>{i+1}</td>
+                <td style={{ fontWeight:600 }}>{r.label}</td>
+                <td style={{ textAlign:'right', fontFamily:'var(--font-mono)', color:'var(--gold)', fontWeight:700 }}>{r.value.toLocaleString()}</td>
+                <td style={{ textAlign:'right', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>
+                  {total > 0 ? ((r.value/total)*100).toFixed(1)+'%' : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={2} style={{ fontWeight:700 }}>Total</td>
+              <td style={{ textAlign:'right', fontWeight:700, fontFamily:'var(--font-mono)' }}>{total.toLocaleString()}</td>
+              <td style={{ textAlign:'right', fontWeight:700 }}>100%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function DetailWeeklySessions({ weeklyData, onBack }) {
   return (
     <div>
-      <Breadcrumb label="Weekly CPR Sessions" onBack={onBack} />
-      <div style={{ fontWeight:700, fontSize:'1rem', color:'var(--text-primary)', marginBottom:4 }}>Weekly CPR Sessions</div>
+      <Breadcrumb label="📋 Weekly CPR Sessions" onBack={onBack} />
       <div style={{ fontSize:'0.78rem', color:'var(--text-muted)', marginBottom:16 }}>Last 8 weeks — number of sessions</div>
       <div className="card" style={{ marginBottom:16 }}>
         <BarChart data={weeklyData} height={180} color="var(--purple)" valueFormatter={v => v.toString()} />
@@ -245,10 +219,10 @@ function DetailWeeklySessions({ weeklyData, onBack }) {
 
 function DetailTopCoops({ topCoops, onBack }) {
   const max = topCoops[0]?.value || 1;
+  const grandTotal = topCoops.reduce((s, r) => s + r.value, 0);
   return (
     <div>
-      <Breadcrumb label="Top Cooperatives by Sessions" onBack={onBack} />
-      <div style={{ fontWeight:700, fontSize:'1rem', color:'var(--text-primary)', marginBottom:4 }}>Top Cooperatives by CPR Sessions</div>
+      <Breadcrumb label="🤝 Top Cooperatives by Sessions" onBack={onBack} />
       <div style={{ fontSize:'0.78rem', color:'var(--text-muted)', marginBottom:16 }}>{topCoops.length} cooperatives ranked by session count</div>
       <div className="tbl-wrap">
         <table>
@@ -267,7 +241,7 @@ function DetailTopCoops({ topCoops, onBack }) {
                 <td style={{ fontWeight:600 }}>{r.label}</td>
                 <td style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, color: PALETTE[i%PALETTE.length] }}>{r.value}</td>
                 <td style={{ textAlign:'right', color:'var(--text-muted)', fontFamily:'var(--font-mono)' }}>
-                  {max > 0 ? ((r.value/topCoops.reduce((s,x)=>s+x.value,0))*100).toFixed(1)+'%' : '—'}
+                  {grandTotal > 0 ? ((r.value/grandTotal)*100).toFixed(1)+'%' : '—'}
                 </td>
                 <td style={{ width:120 }}>
                   <div style={{ height:8, background:'var(--bg)', borderRadius:99, overflow:'hidden' }}>
@@ -286,12 +260,11 @@ function DetailTopCoops({ topCoops, onBack }) {
   );
 }
 
-function DetailBagStock({ stockStatusData, stock, onBack }) {
-  const total = stockStatusData.reduce((s,d)=>s+d.value,0);
+function DetailBagStock({ stockStatusData, onBack }) {
+  const total = stockStatusData.reduce((s,d) => s+d.value, 0);
   return (
     <div>
-      <Breadcrumb label="Bag Stock Distribution" onBack={onBack} />
-      <div style={{ fontWeight:700, fontSize:'1rem', color:'var(--text-primary)', marginBottom:4 }}>Bag Stock Distribution</div>
+      <Breadcrumb label="📦 Bag Stock Distribution" onBack={onBack} />
       <div style={{ fontSize:'0.78rem', color:'var(--text-muted)', marginBottom:16 }}>{total} bags total — current status breakdown</div>
       <div className="card" style={{ marginBottom:16 }}>
         <DonutChart data={stockStatusData} size={160} />
@@ -335,17 +308,19 @@ function DetailBagStock({ stockStatusData, stock, onBack }) {
   );
 }
 
-/* ═══════════════════════════
+/* ══════════════════════════════════════════
    MAIN ANALYTICS
-═══════════════════════════ */
-const VIEWS = [
-  { id: 'monthly',  label: '📅 Monthly CPR Weight Trend' },
-  { id: 'weekly',   label: '📋 Weekly CPR Sessions' },
-  { id: 'coops',    label: '🤝 Top Cooperatives by Sessions' },
-  { id: 'bagstock', label: '📦 Bag Stock Distribution' },
+══════════════════════════════════════════ */
+
+const NAV_BUTTONS = [
+  { id: 'monthly',  icon: '📅', label: 'Monthly CPR Weight Trend',      accent: 'var(--teal)'   },
+  { id: 'island',   icon: '🏝️', label: 'CPR Weight by Island',           accent: 'var(--gold)'   },
+  { id: 'weekly',   icon: '📋', label: 'Weekly CPR Sessions',            accent: 'var(--purple)' },
+  { id: 'coops',    icon: '🤝', label: 'Top Cooperatives by Sessions',   accent: 'var(--green)'  },
+  { id: 'bagstock', icon: '📦', label: 'Bag Stock Distribution',         accent: 'var(--amber)'  },
 ];
 
-export default function Analytics() {
+export default function Analytics({ analyticsBackRef }) {
   const [cprs,    setCprs]    = useState([]);
   const [twcs,    setTwcs]    = useState([]);
   const [stock,   setStock]   = useState([]);
@@ -358,6 +333,13 @@ export default function Analytics() {
     const u3 = onSnapshot(collection(db,'shedStock'),   s => { setStock(s.docs.map(d=>({id:d.id,...d.data()}))); setLoading(false); });
     return () => { u1(); u2(); u3(); };
   }, []);
+
+  // Register back-callback for App-level hardware back button
+  useEffect(() => {
+    if (analyticsBackRef) {
+      analyticsBackRef.current = detail ? () => setDetail(null) : null;
+    }
+  }, [detail, analyticsBackRef]);
 
   /* ── Derived data ── */
   const islandData = useMemo(() => {
@@ -414,40 +396,21 @@ export default function Analytics() {
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
 
   /* ── Detail routing ── */
-  if (detail === 'monthly')  return <DetailMonthlyTrend  monthlyData={monthlyData}       onBack={() => setDetail(null)} />;
-  if (detail === 'weekly')   return <DetailWeeklySessions weeklyData={weeklyData}         onBack={() => setDetail(null)} />;
-  if (detail === 'coops')    return <DetailTopCoops       topCoops={topCoops}             onBack={() => setDetail(null)} />;
-  if (detail === 'bagstock') return <DetailBagStock       stockStatusData={stockStatusData} stock={stock} onBack={() => setDetail(null)} />;
+  if (detail === 'monthly')  return <DetailMonthlyTrend   monthlyData={monthlyData}         onBack={() => setDetail(null)} />;
+  if (detail === 'island')   return <DetailIslandWeight    islandData={islandData}           onBack={() => setDetail(null)} />;
+  if (detail === 'weekly')   return <DetailWeeklySessions  weeklyData={weeklyData}           onBack={() => setDetail(null)} />;
+  if (detail === 'coops')    return <DetailTopCoops        topCoops={topCoops}               onBack={() => setDetail(null)} />;
+  if (detail === 'bagstock') return <DetailBagStock        stockStatusData={stockStatusData} onBack={() => setDetail(null)} />;
 
+  /* ── Main view ── */
   return (
     <div>
-      {/* Page header with Sort By dropdown */}
+      {/* Header — no Sort By button */}
       <div className="page-header" style={{ marginBottom: 16 }}>
         <div className="page-title">📈 Analytics</div>
-        <Dropdown trigger={
-          <button type="button" className="btn btn-primary btn-sm" style={{ gap: 6 }}>
-            Sort By ▾
-          </button>
-        }>
-          {(close) => VIEWS.map(v => (
-            <button key={v.id} type="button"
-              onClick={() => { setDetail(v.id); close(); }}
-              style={{
-                display: 'block', width: '100%', padding: '12px 18px', textAlign: 'left',
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)',
-                borderBottom: '1px solid var(--border)', transition: 'background 0.12s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background='var(--teal-dim)'}
-              onMouseLeave={e => e.currentTarget.style.background='none'}
-            >
-              {v.label}
-            </button>
-          ))}
-        </Dropdown>
       </div>
 
-      {/* KPI cards — min-height to prevent text clipping */}
+      {/* KPI cards — compact, height fits content */}
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)', marginBottom: 20 }}>
         {[
           { icon:'⚖️', val: fmt.kg(sumField(cprs,'total_weight_cpr')), lbl:'All-Time CPR Weight',  col:'var(--gold)'   },
@@ -456,97 +419,65 @@ export default function Analytics() {
           { icon:'✅', val: fmt.kg(sumField(stock.filter(s=>s.status==='ready_to_ship'),'stationWeight')), lbl:'Pending Shipment', col:'var(--green)' },
         ].map(s => (
           <div key={s.lbl} className="stat-card"
-            style={{ '--accent-color': s.col, minHeight: 110, justifyContent: 'flex-start', paddingTop: 14 }}>
-            <div className="stat-icon">{s.icon}</div>
-            <div className="stat-value" style={{ fontSize: s.val.toString().length > 8 ? '0.95rem' : '1.3rem', lineHeight: 1.1, wordBreak:'break-all' }}>{s.val}</div>
-            <div className="stat-label" style={{ marginTop: 6, whiteSpace: 'normal', lineHeight: 1.3 }}>{s.lbl}</div>
+            style={{
+              '--accent-color': s.col,
+              padding: '12px 14px',
+              minHeight: 'unset',
+              height: 'auto',
+              alignItems: 'flex-start',
+              gap: 4,
+            }}>
+            <div className="stat-icon" style={{ fontSize: '1.3rem', marginBottom: 2 }}>{s.icon}</div>
+            <div className="stat-value" style={{ fontSize: s.val.toString().length > 8 ? '0.92rem' : '1.2rem', lineHeight: 1.15, wordBreak:'break-all' }}>{s.val}</div>
+            <div className="stat-label" style={{ marginTop: 2, whiteSpace: 'normal', lineHeight: 1.3, fontSize: '0.72rem' }}>{s.lbl}</div>
           </div>
         ))}
       </div>
 
-      {/* Charts — 2-col grid */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        {/* Monthly trend — horizontally scrollable, isolated */}
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div className="card-header">
-            <div>
-              <div className="card-title">📅 Monthly CPR Weight Trend</div>
-              <div className="card-subtitle">Last 12 months (kg) — scroll →</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" type="button" onClick={() => setDetail('monthly')}>Detail →</button>
-          </div>
-          {/* Scrollable wrapper — only this scrolls */}
-          <div style={{ overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-            <div style={{ minWidth: 520 }}>
-              <BarChart data={monthlyData} height={160} color="var(--teal)" valueFormatter={v => (v/1000).toFixed(1)+'t'} />
-            </div>
-          </div>
-        </div>
-
-        {/* CPR by island */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">🏝️ CPR Weight by Island</div>
-              <div className="card-subtitle">Cumulative (kg) — top 10</div>
-            </div>
-          </div>
-          <BarChart data={islandData} height={160} color="var(--gold)" valueFormatter={v => (v/1000).toFixed(1)+'t'} />
-        </div>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        {/* Bag stock donut */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">📦 Bag Stock Distribution</div>
-              <div className="card-subtitle">Current status breakdown</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" type="button" onClick={() => setDetail('bagstock')}>Detail →</button>
-          </div>
-          <DonutChart data={stockStatusData} size={150} />
-        </div>
-
-        {/* Weekly CPR */}
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">📋 Weekly CPR Sessions</div>
-              <div className="card-subtitle">Last 8 weeks</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" type="button" onClick={() => setDetail('weekly')}>Detail →</button>
-          </div>
-          <BarChart data={weeklyData} height={160} color="var(--purple)" valueFormatter={v => v.toString()} />
-        </div>
-      </div>
-
-      {/* Top cooperatives mini list */}
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <div className="card-title">🤝 Top Cooperatives by Sessions</div>
-            <div className="card-subtitle">Number of CPR sessions recorded</div>
-          </div>
-          <button className="btn btn-sm btn-ghost" type="button" onClick={() => setDetail('coops')}>Detail →</button>
-        </div>
-        <div className="mini-bar-wrap">
-          {topCoops.slice(0,6).map((row, i) => {
-            const max = topCoops[0]?.value || 1;
-            return (
-              <div key={row.label} className="mini-bar-row">
-                <div className="mini-bar-label" title={row.label}>{row.label}</div>
-                <div className="mini-bar-track">
-                  <div className="mini-bar-fill" style={{ width:`${(row.value/max)*100}%`, background: PALETTE[i%PALETTE.length] }} />
-                </div>
-                <div className="mini-bar-val">{row.value} sessions</div>
-              </div>
-            );
-          })}
-          {topCoops.length === 0 && (
-            <div style={{ textAlign:'center', padding:20, color:'var(--text-muted)', fontSize:'0.82rem' }}>No data</div>
-          )}
-        </div>
+      {/* Navigation buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {NAV_BUTTONS.map(btn => (
+          <button
+            key={btn.id}
+            type="button"
+            onClick={() => setDetail(btn.id)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              width: '100%',
+              padding: '16px 18px',
+              background: 'var(--navy-card)',
+              border: '1.5px solid var(--border)',
+              borderLeft: `4px solid ${btn.accent}`,
+              borderRadius: 12,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--teal-dim)';
+              e.currentTarget.style.borderColor = btn.accent;
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--navy-card)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+              e.currentTarget.style.borderLeftColor = btn.accent;
+            }}
+          >
+            <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{btn.icon}</span>
+            <span style={{
+              fontFamily: 'var(--font-head)',
+              fontWeight: 700,
+              fontSize: '0.95rem',
+              color: 'var(--text-primary)',
+              flex: 1,
+            }}>
+              {btn.label}
+            </span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '1rem', flexShrink: 0 }}>›</span>
+          </button>
+        ))}
       </div>
     </div>
   );
