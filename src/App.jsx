@@ -174,7 +174,9 @@ export default function App() {
   const dashBackRef = useRef(null);
 
   // Reports Centre registers a "go back to list" callback here
-  const reportsBackRef = useRef(null);
+  const reportsBackRef   = useRef(null);
+  // Analytics registers a "go back to list" callback here
+  const analyticsBackRef = useRef(null);
 
   /* ── Auth listener ── */
   useEffect(() => {
@@ -212,6 +214,16 @@ export default function App() {
     async function setupBackButton() {
       function handleBack() {
         const cur = sectionRef.current;
+
+        if (cur === 'analytics') {
+          if (analyticsBackRef.current) {
+            analyticsBackRef.current();
+            analyticsBackRef.current = null;
+          } else {
+            setSection('dashboard');
+          }
+          return;
+        }
 
         if (cur === 'reports') {
           // If detail view is open inside Reports Centre, close it first
@@ -346,7 +358,8 @@ export default function App() {
           profile={profile}
           dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
           initialReport={section === 'reports' ? reportInit : undefined}
-          reportsBackRef={section === 'reports' ? reportsBackRef : undefined}
+          reportsBackRef={section === 'reports'   ? reportsBackRef   : undefined}
+          analyticsBackRef={section === 'analytics' ? analyticsBackRef : undefined}
         />
       </div>
     </div>
