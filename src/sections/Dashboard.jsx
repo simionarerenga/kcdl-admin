@@ -599,6 +599,11 @@ function DetailBagsInStorage({ stock, onBack }) {
   const [distDate,        setDistDate]        = useState(new Date().toISOString().slice(0,10));
   const [distNotes,       setDistNotes]       = useState('');
 
+  // Serial validation — must match e.g. TRW-0001 (letters-digits) or pure digits
+  const SERIAL_RE = /^[A-Za-z]{2,5}-\d{3,6}$|^\d{4,8}$/;
+  const serialStartErr = distSerialStart && !SERIAL_RE.test(distSerialStart.trim());
+  const serialEndErr   = distSerialEnd   && !SERIAL_RE.test(distSerialEnd.trim());
+
   const stations = useMemo(() =>
     [...new Set(stock.map(s => s.stationId).filter(Boolean))].sort(), [stock]);
 
@@ -801,16 +806,30 @@ function DetailBagsInStorage({ stock, onBack }) {
                 </div>
               </div>
               <div className="form-label" style={{ marginBottom: 8, fontWeight: 700 }}>Bag Serial Range</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 }}>
                 <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                   <div className="form-label">Serial Start</div>
                   <input className="form-input" placeholder="e.g. TRW-0001"
-                    value={distSerialStart} onChange={e => setDistSerialStart(e.target.value)} />
+                    value={distSerialStart}
+                    onChange={e => setDistSerialStart(e.target.value)}
+                    style={serialStartErr ? { borderColor: 'var(--red)', background: 'rgba(239,68,68,0.06)' } : {}} />
+                  {serialStartErr && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--red)', marginTop: 4 }}>
+                      ⚠️ Invalid format — use e.g. <strong>TRW-0001</strong>
+                    </div>
+                  )}
                 </div>
                 <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                   <div className="form-label">Serial End</div>
                   <input className="form-input" placeholder="e.g. TRW-0050"
-                    value={distSerialEnd} onChange={e => setDistSerialEnd(e.target.value)} />
+                    value={distSerialEnd}
+                    onChange={e => setDistSerialEnd(e.target.value)}
+                    style={serialEndErr ? { borderColor: 'var(--red)', background: 'rgba(239,68,68,0.06)' } : {}} />
+                  {serialEndErr && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--red)', marginTop: 4 }}>
+                      ⚠️ Invalid format — use e.g. <strong>TRW-0050</strong>
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -829,7 +848,7 @@ function DetailBagsInStorage({ stock, onBack }) {
             <div className="modal-foot">
               <button className="btn btn-ghost" type="button" onClick={() => setShowDistrib(false)}>Cancel</button>
               <button className="btn btn-primary" type="button"
-                disabled={!distFrom || !distTo || !distSerialStart}
+                disabled={!distFrom || !distTo || !distSerialStart || serialStartErr || serialEndErr}
                 onClick={() => {
                   // TODO: write distribution record to Firestore
                   alert(`Distribution recorded:\n${distSerialStart} → ${distSerialEnd || distSerialStart}\nFrom: ${distFrom} → To: ${distTo}\nDate: ${distDate}\n\nFirestore write goes here.`);
