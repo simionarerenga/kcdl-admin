@@ -16,6 +16,8 @@ import FarmersMonitor       from './sections/FarmersMonitor';
 import ReportsCentre        from './sections/ReportsCentre';
 import Analytics            from './sections/Analytics';
 import StationsManager      from './sections/StationsManager';
+import IslandsManager       from './sections/IslandsManager';
+import CooperativesManager  from './sections/CooperativesManager';
 import UserManagement       from './sections/UserManagement';
 import SettingsSection      from './sections/SettingsSection';
 
@@ -47,7 +49,8 @@ export const SECTIONS = [
   {
     group: 'Admin',
     items: [
-      { id: 'stations', icon: '🏝️', label: 'Stations',        desc: 'Field station & cooperative registry' },
+      { id: 'islands',       icon: '🏝️', label: 'Islands',        desc: 'Outer island registry & details' },
+      { id: 'cooperatives',  icon: '🤝', label: 'Cooperatives',   desc: 'Cooperative registry per island' },
       { id: 'users',    icon: '👤', label: 'User Management', desc: 'Inspector accounts & access roles' },
       { id: 'settings', icon: '⚙️', label: 'Settings',        desc: 'System info & account details' },
     ],
@@ -64,7 +67,8 @@ const SECTION_MAP = {
   farmers:   FarmersMonitor,
   reports:   ReportsCentre,
   analytics: Analytics,
-  stations:  StationsManager,
+  islands:       IslandsManager,
+  cooperatives:  CooperativesManager,
   users:     UserManagement,
   settings:  SettingsSection,
 };
