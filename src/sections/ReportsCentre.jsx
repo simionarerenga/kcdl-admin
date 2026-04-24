@@ -506,7 +506,13 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
         );
       }
       case 'shipment_report': {
-        const ready = filtStock.filter(s => s.status === 'ready_to_ship' || s.status === 'shipped');
+        const ready = filtStock.filter(s => {
+          if (s.status !== 'ready_to_ship' && s.status !== 'shipped') return false;
+          const d = s.date || s.updatedAt || '';
+          if (dateFrom && d < dateFrom) return false;
+          if (dateTo   && d > dateTo)   return false;
+          return true;
+        });
         return (
           <div>
             <div className="report-section-title">Shipment Manifest — {ready.length} bags · {fmt.kg(sumField(ready, 'stationWeight'))}</div>
@@ -631,17 +637,17 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
           {selected === 'daily_report' && (
             <>
               <label className="form-label" style={{ margin: 0 }}>Date:</label>
-              <input type="date" className="form-input" style={{ width: 160 }} value={singleDate}
+              <input type="date" className="form-input" style={{ width: 112 }} value={singleDate}
                 onChange={e => setSingleDate(e.target.value)} />
             </>
           )}
-          {!['daily_report', 'monthly_report', 'stock_report', 'farmer_report', 'shipment_report', 'station_report'].includes(selected) && (
+          {!['daily_report', 'monthly_report', 'stock_report', 'farmer_report', 'station_report'].includes(selected) && (
             <>
               <label className="form-label" style={{ margin: 0 }}>From:</label>
-              <input type="date" className="form-input" style={{ width: 148 }} value={dateFrom}
+              <input type="date" className="form-input" style={{ width: 104 }} value={dateFrom}
                 onChange={e => setDateFrom(e.target.value)} />
               <label className="form-label" style={{ margin: 0 }}>To:</label>
-              <input type="date" className="form-input" style={{ width: 148 }} value={dateTo}
+              <input type="date" className="form-input" style={{ width: 104 }} value={dateTo}
                 onChange={e => setDateTo(e.target.value)} />
             </>
           )}
@@ -654,7 +660,7 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
         <div className="report-header">
           <div className="report-org">
             <strong>Kiribati Copra Development Ltd</strong>
-            HQ Tarawa, Kiribati<br />
+            Head Office, Betio, South Tarawa, Kiribati<br />
             Report generated: {new Date().toLocaleString('en-GB')}
           </div>
           <div className="report-title-block">
