@@ -239,12 +239,6 @@ export default function UserManagement() {
           <button className="btn btn-primary btn-sm" onClick={openAddInspector} type="button">
             + Add Inspector
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={openAddIsland} type="button">
-            + Add Island
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={openAddCoop} type="button">
-            + Add Cooperative
-          </button>
         </div>
       </div>
 
