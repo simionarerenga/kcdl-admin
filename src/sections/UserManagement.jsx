@@ -10,9 +10,34 @@ const BLANK_INSPECTOR = {
   email: '', password: '', phone: '', whatsapp: '', stationId: '', role: 'inspector',
 };
 
-const BLANK_ISLAND = { name: '', region: '' };
-
 const BLANK_COOP = { name: '', island: '', contactName: '', contactPhone: '' };
+
+const KIRIBATI_ISLANDS = [
+  'Betio Town',
+  'Bairiki (Teinainano Urban)',
+  'Eutan Tarawa',
+  'Abaiang',
+  'Abemama',
+  'Aranuka',
+  'Arorae',
+  'Banaba (Ocean Island)',
+  'Beru',
+  'Butaritari',
+  'Kiritimati (Christmas Island)',
+  'Kuria',
+  'Maiana',
+  'Makin',
+  'Marakei',
+  'Nikunau',
+  'Nonouti',
+  'Onotoa',
+  'Tabiteuea North',
+  'Tabiteuea South',
+  'Tabuaeran (Fanning Island)',
+  'Tamana',
+  'Tarawa',
+  'Teraina (Washington Island)',
+];
 
 function codeFromName(name) {
   if (!name) return '';
@@ -47,15 +72,13 @@ function ConfirmModal({ title, body, confirmLabel = 'Remove', onCancel, onConfir
 export default function UserManagement() {
   const [users,       setUsers]      = useState([]);
   const [stations,    setStations]   = useState([]);   // Firestore 'stations'
-  const [islands,     setIslands]    = useState([]);   // Firestore 'islands'
   const [coops,       setCoops]      = useState([]);   // Firestore 'cooperatives'
   const [loading,     setLoading]    = useState(true);
 
-  // Modal state: null | 'inspector' | 'island' | 'coop'
+  // Modal state: null | 'inspector' | 'coop'
   const [modalType,   setModalType]  = useState(null);
   const [editTarget,  setEditTarget] = useState(null); // existing doc being edited
   const [inspForm,    setInspForm]   = useState(BLANK_INSPECTOR);
-  const [islandForm,  setIslandForm] = useState(BLANK_ISLAND);
   const [coopForm,    setCoopForm]   = useState(BLANK_COOP);
 
   const [saving,      setSaving]     = useState(false);
@@ -67,19 +90,11 @@ export default function UserManagement() {
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'users'),        s => { setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); });
     const u2 = onSnapshot(collection(db, 'stations'),     s =>   setStations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u3 = onSnapshot(collection(db, 'islands'),      s =>   setIslands(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const u4 = onSnapshot(collection(db, 'cooperatives'), s =>   setCoops(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); u4(); };
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
-
-  /* derived lists */
-  const islandList = useMemo(() => {
-    const fromIslands = islands.map(i => i.name).filter(Boolean);
-    const fromStations = stations.map(s => s.island).filter(Boolean);
-    return [...new Set([...fromIslands, ...fromStations])].sort();
-  }, [islands, stations]);
 
   const coopsForIsland = useMemo(() =>
     coops.filter(c => c.island === inspForm.island)
@@ -121,7 +136,6 @@ export default function UserManagement() {
     setModalType('inspector');
   }
 
-  function openAddIsland()  { setIslandForm(BLANK_ISLAND);  setEditTarget(null); setModalType('island');  }
   function openAddCoop()    { setCoopForm(BLANK_COOP);      setEditTarget(null); setModalType('coop');    }
   function closeModal()     { setModalType(null); setEditTarget(null); }
 
@@ -175,17 +189,6 @@ export default function UserManagement() {
     } catch (e) {
       flash('❌ ' + (e.message || 'Unexpected error.'));
     }
-    finally { setSaving(false); }
-  }
-
-  async function saveIsland() {
-    if (!islandForm.name.trim()) { flash('⚠️ Island name is required.'); return; }
-    setSaving(true);
-    try {
-      await addDoc(collection(db, 'islands'), { ...islandForm, createdAt: new Date().toISOString() });
-      flash(`✅ Island "${islandForm.name}" added.`);
-      closeModal();
-    } catch (e) { flash('❌ ' + e.message); }
     finally { setSaving(false); }
   }
 
@@ -343,7 +346,7 @@ export default function UserManagement() {
                 <select className="form-select" style={{ maxWidth: 320 }}
                   value={inspForm.island} onChange={e => handleIslandChange(e.target.value)}>
                   <option value="">— Select Island —</option>
-                  {islandList.map(isl => <option key={isl} value={isl}>{isl}</option>)}
+                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl}>{isl}</option>)}
                 </select>
               </div>
 
@@ -503,42 +506,6 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* ══════════════ ADD ISLAND MODAL ══════════════ */}
-      {modalType === 'island' && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-head">
-              <div className="modal-title">🏝️ Add Island</div>
-              <button className="modal-close" onClick={closeModal} type="button">✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label className="form-label">Island Name *</label>
-                <input className="form-input"
-                  value={islandForm.name}
-                  onChange={e => setIslandForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Tabiteuea" autoFocus
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Region</label>
-                <input className="form-input"
-                  value={islandForm.region}
-                  onChange={e => setIslandForm(f => ({ ...f, region: e.target.value }))}
-                  placeholder="e.g. Gilbert Islands"
-                />
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={closeModal} type="button">Cancel</button>
-              <button className="btn btn-primary" onClick={saveIsland} disabled={saving} type="button">
-                {saving ? '…Saving' : '✓ Add Island'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ══════════════ ADD COOPERATIVE MODAL ══════════════ */}
       {modalType === 'coop' && (
         <div className="modal-overlay" onClick={closeModal}>
@@ -554,7 +521,7 @@ export default function UserManagement() {
                   value={coopForm.island}
                   onChange={e => setCoopForm(f => ({ ...f, island: e.target.value }))}>
                   <option value="">— Select Island —</option>
-                  {islandList.map(isl => <option key={isl} value={isl}>{isl}</option>)}
+                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl}>{isl}</option>)}
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: 14 }}>
