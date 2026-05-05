@@ -1,12 +1,13 @@
 // src/sections/UserManagement.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../firebase';
 import { fmt } from '../utils/helpers';
 
 const BLANK_INSPECTOR = {
   island: '', cooperativeName: '', stationCode: '', displayName: '',
-  email: '', phone: '', whatsapp: '', stationId: '', role: 'inspector',
+  email: '', password: '', phone: '', whatsapp: '', stationId: '', role: 'inspector',
 };
 
 const BLANK_ISLAND = { name: '', region: '' };
@@ -61,6 +62,7 @@ export default function UserManagement() {
   const [msg,         setMsg]        = useState('');
   const [search,      setSearch]     = useState('');
   const [confirmDel,  setConfirmDel] = useState(null);
+  const [showPw,      setShowPw]     = useState(false);
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'users'),        s => { setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); });
@@ -109,6 +111,7 @@ export default function UserManagement() {
       stationCode:     u.stationCode     || '',
       displayName:     u.displayName     || '',
       email:           u.email           || '',
+      password:        '',   // never pre-fill password
       phone:           u.phone           || '',
       whatsapp:        u.whatsapp        || '',
       stationId:       u.stationId       || '',
@@ -126,20 +129,52 @@ export default function UserManagement() {
   async function saveInspector() {
     if (!inspForm.email.trim())     { flash('⚠️ Email is required.');     return; }
     if (!inspForm.stationId.trim()) { flash('⚠️ Station ID is required.'); return; }
+
+    // Password required only when creating a new account
+    if (!editTarget && !inspForm.password.trim()) {
+      flash('⚠️ Password is required when creating a new inspector account.');
+      return;
+    }
+    if (!editTarget && inspForm.password.length < 6) {
+      flash('⚠️ Password must be at least 6 characters.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const data = { ...inspForm, updatedAt: new Date().toISOString() };
       if (!editTarget) {
-        const docId = inspForm.email.replace(/[^a-zA-Z0-9]/g, '_');
-        await setDoc(doc(db, 'users', docId), { ...data, createdAt: new Date().toISOString(), provisioned: true });
-        flash(`✅ Inspector account created for ${inspForm.email}.`);
+        // ── CREATE: Cloud Function handles Auth user + Firestore doc ──
+        const functions       = getFunctions();
+        const createInspector = httpsCallable(functions, 'createInspectorUser');
+
+        await createInspector({
+          email:           inspForm.email.trim(),
+          password:        inspForm.password,
+          displayName:     inspForm.displayName,
+          island:          inspForm.island,
+          cooperativeName: inspForm.cooperativeName,
+          stationCode:     inspForm.stationCode,
+          stationId:       inspForm.stationId,
+          phone:           inspForm.phone,
+          whatsapp:        inspForm.whatsapp,
+          role:            inspForm.role,
+        });
+
+        flash(`✅ Inspector account created for ${inspForm.email}. They can now sign in with the password you set.`);
+        setShowPw(false);
       } else {
-        const { email: _e, ...patch } = data;
-        await updateDoc(doc(db, 'users', editTarget.id), patch);
+        // ── EDIT: update Firestore profile only ──
+        const { email: _e, password: _p, ...patch } = inspForm;
+        await updateDoc(doc(db, 'users', editTarget.id), {
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        });
         flash('✅ Inspector profile updated.');
       }
       closeModal();
-    } catch (e) { flash('❌ ' + e.message); }
+    } catch (e) {
+      flash('❌ ' + (e.message || 'Unexpected error.'));
+    }
     finally { setSaving(false); }
   }
 
@@ -379,6 +414,38 @@ export default function UserManagement() {
                   </div>
                 )}
               </div>
+
+              {/* ── Row 5b: Password (only shown when creating a new account) ── */}
+              {!editTarget && (
+                <div className="form-group" style={{ marginBottom: 14 }}>
+                  <label className="form-label">
+                    Password *
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6, fontSize: '0.7rem' }}>
+                      Min 6 characters · Inspector uses this to sign in
+                    </span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="form-input"
+                      type={showPw ? 'text' : 'password'}
+                      value={inspForm.password}
+                      onChange={e => setInsp('password', e.target.value)}
+                      placeholder="Set a secure password"
+                      style={{ paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(v => !v)}
+                      style={{
+                        position: 'absolute', right: 12, top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: '0.85rem', color: 'var(--text-muted)',
+                      }}
+                    >{showPw ? '🙈' : '👁️'}</button>
+                  </div>
+                </div>
+              )}
 
               {/* ── Row 6: Phone | WhatsApp (inline, side by side) ── */}
               <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
