@@ -1,13 +1,12 @@
 // src/sections/UserManagement.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../firebase';
 import { fmt } from '../utils/helpers';
 
 const BLANK_INSPECTOR = {
-  island: '', cooperativeName: '', stationCode: '', displayName: '',
-  email: '', password: '', phone: '', whatsapp: '', stationId: '', role: 'inspector',
+  island: '', displayName: '', email: '', password: '', phone: '', whatsapp: '',
 };
 
 const BLANK_COOP = { name: '', island: '', contactName: '', contactPhone: '' };
@@ -71,7 +70,6 @@ function ConfirmModal({ title, body, confirmLabel = 'Remove', onCancel, onConfir
 
 export default function UserManagement() {
   const [users,       setUsers]      = useState([]);
-  const [stations,    setStations]   = useState([]);   // Firestore 'stations'
   const [coops,       setCoops]      = useState([]);   // Firestore 'cooperatives'
   const [loading,     setLoading]    = useState(true);
 
@@ -89,48 +87,29 @@ export default function UserManagement() {
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'users'),        s => { setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); });
-    const u2 = onSnapshot(collection(db, 'stations'),     s =>   setStations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const u4 = onSnapshot(collection(db, 'cooperatives'), s =>   setCoops(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u4(); };
+    return () => { u1(); u4(); };
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
-
-  const coopsForIsland = useMemo(() =>
-    coops.filter(c => c.island === inspForm.island)
-  , [coops, inspForm.island]);
 
   /* ── Inspector field helpers ── */
   const setInsp = (key, val) => setInspForm(f => ({ ...f, [key]: val }));
 
   function handleIslandChange(island) {
-    setInspForm(f => ({ ...f, island, cooperativeName: '', stationCode: '' }));
-  }
-
-  function handleCoopChange(cooperativeName) {
-    const match = coops.find(c => c.name === cooperativeName && c.island === inspForm.island);
-    setInspForm(f => ({
-      ...f,
-      cooperativeName,
-      stationCode: match?.code || codeFromName(cooperativeName),
-      stationId:   f.stationId || match?.id || '',
-    }));
+    setInspForm(f => ({ ...f, island }));
   }
 
   /* ── Open modals ── */
   function openAddInspector() { setInspForm(BLANK_INSPECTOR); setEditTarget(null); setModalType('inspector'); }
   function openEditInspector(u) {
     setInspForm({
-      island:          u.island          || '',
-      cooperativeName: u.cooperativeName || u.stationName || '',
-      stationCode:     u.stationCode     || '',
-      displayName:     u.displayName     || '',
-      email:           u.email           || '',
-      password:        '',   // never pre-fill password
-      phone:           u.phone           || '',
-      whatsapp:        u.whatsapp        || '',
-      stationId:       u.stationId       || '',
-      role:            u.role            || 'inspector',
+      island:      u.island      || '',
+      displayName: u.displayName || '',
+      email:       u.email       || '',
+      password:    '',
+      phone:       u.phone       || '',
+      whatsapp:    u.whatsapp    || '',
     });
     setEditTarget(u);
     setModalType('inspector');
@@ -141,10 +120,8 @@ export default function UserManagement() {
 
   /* ── Save handlers ── */
   async function saveInspector() {
-    if (!inspForm.email.trim())     { flash('⚠️ Email is required.');     return; }
-    if (!inspForm.stationId.trim()) { flash('⚠️ Station ID is required.'); return; }
+    if (!inspForm.email.trim()) { flash('⚠️ Email is required.'); return; }
 
-    // Password required only when creating a new account
     if (!editTarget && !inspForm.password.trim()) {
       flash('⚠️ Password is required when creating a new inspector account.');
       return;
@@ -157,27 +134,22 @@ export default function UserManagement() {
     setSaving(true);
     try {
       if (!editTarget) {
-        // ── CREATE: Cloud Function handles Auth user + Firestore doc ──
         const functions       = getFunctions();
         const createInspector = httpsCallable(functions, 'createInspectorUser');
 
         await createInspector({
-          email:           inspForm.email.trim(),
-          password:        inspForm.password,
-          displayName:     inspForm.displayName,
-          island:          inspForm.island,
-          cooperativeName: inspForm.cooperativeName,
-          stationCode:     inspForm.stationCode,
-          stationId:       inspForm.stationId,
-          phone:           inspForm.phone,
-          whatsapp:        inspForm.whatsapp,
-          role:            inspForm.role,
+          email:       inspForm.email.trim(),
+          password:    inspForm.password,
+          displayName: inspForm.displayName,
+          island:      inspForm.island,
+          phone:       inspForm.phone,
+          whatsapp:    inspForm.whatsapp,
+          role:        'inspector',
         });
 
         flash(`✅ Inspector account created for ${inspForm.email}. They can now sign in with the password you set.`);
         setShowPw(false);
       } else {
-        // ── EDIT: update Firestore profile only ──
         const { email: _e, password: _p, ...patch } = inspForm;
         await updateDoc(doc(db, 'users', editTarget.id), {
           ...patch,
@@ -340,7 +312,7 @@ export default function UserManagement() {
             </div>
 
             <div className="modal-body">
-              {/* ── Row 1: Island (wider) ── */}
+              {/* ── Row 1: Island ── */}
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Island</label>
                 <select className="form-select" style={{ maxWidth: 320 }}
@@ -350,41 +322,7 @@ export default function UserManagement() {
                 </select>
               </div>
 
-              {/* ── Row 2: Cooperative Name (full width) ── */}
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label className="form-label">Cooperative Name</label>
-                {coopsForIsland.length > 0 ? (
-                  <select className="form-select"
-                    value={inspForm.cooperativeName} onChange={e => handleCoopChange(e.target.value)}>
-                    <option value="">— Select Cooperative —</option>
-                    {coopsForIsland.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  </select>
-                ) : (
-                  <input className="form-input" value={inspForm.cooperativeName}
-                    onChange={e => handleCoopChange(e.target.value)}
-                    placeholder="e.g. Tabiteuea North Cooperative" />
-                )}
-              </div>
-
-              {/* ── Row 3: Station Code (label inline) ── */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  Station Code
-                  <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6, fontSize: '0.7rem' }}>
-                    Auto · 3 initials
-                  </span>
-                </label>
-                <input
-                  className="form-input"
-                  style={{ width: 80, fontFamily: 'var(--font-mono)', letterSpacing: '0.12em', fontWeight: 700, textAlign: 'center' }}
-                  value={inspForm.stationCode}
-                  onChange={e => setInsp('stationCode', e.target.value.toUpperCase().slice(0, 3))}
-                  placeholder="TAB"
-                  maxLength={3}
-                />
-              </div>
-
-              {/* ── Row 4: Name of Inspector ── */}
+              {/* ── Row 2: Name of Inspector ── */}
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Name of Inspector</label>
                 <input className="form-input"
@@ -395,7 +333,7 @@ export default function UserManagement() {
                 />
               </div>
 
-              {/* ── Row 5: Email (full width, locked on edit) ── */}
+              {/* ── Row 3: Email (locked on edit) ── */}
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Email Address *</label>
                 <input className="form-input" type="email"
@@ -412,7 +350,7 @@ export default function UserManagement() {
                 )}
               </div>
 
-              {/* ── Row 5b: Password (only shown when creating a new account) ── */}
+              {/* ── Row 4: Password (create only) ── */}
               {!editTarget && (
                 <div className="form-group" style={{ marginBottom: 14 }}>
                   <label className="form-label">
@@ -444,7 +382,7 @@ export default function UserManagement() {
                 </div>
               )}
 
-              {/* ── Row 6: Phone | WhatsApp (inline, side by side) ── */}
+              {/* ── Row 5: Phone | WhatsApp ── */}
               <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 200 }}>
                   <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>Phone</label>
@@ -461,37 +399,6 @@ export default function UserManagement() {
                     onChange={e => setInsp('whatsapp', e.target.value)}
                     placeholder="+686 730 xxxxx"
                   />
-                </div>
-              </div>
-
-              {/* ── Row 7: Station ID ── */}
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label className="form-label">Station ID *</label>
-                <input className="form-input" style={{ fontFamily: 'var(--font-mono)' }}
-                  value={inspForm.stationId}
-                  onChange={e => setInsp('stationId', e.target.value)}
-                  placeholder="e.g. tab-north"
-                />
-              </div>
-
-              {/* ── Row 8: Role checkboxes ── */}
-              <div className="form-group">
-                <label className="form-label">Role</label>
-                <div style={{ display: 'flex', gap: 24, marginTop: 6 }}>
-                  {[
-                    { val: 'inspector', label: 'Copra Inspector' },
-                    { val: 'admin',     label: 'Admin' },
-                  ].map(opt => (
-                    <label key={opt.val}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.85rem', userSelect: 'none' }}>
-                      <input type="checkbox"
-                        checked={inspForm.role === opt.val}
-                        onChange={() => setInsp('role', opt.val)}
-                        style={{ width: 16, height: 16, accentColor: 'var(--teal)', cursor: 'pointer' }}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
                 </div>
               </div>
             </div>
