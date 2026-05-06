@@ -20,8 +20,16 @@ export default function IslandsManager() {
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'islands'), s => {
-      setFirestoreIslands(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      const docs = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      setFirestoreIslands(docs);
       setLoading(false);
+
+      // Auto-register any hardcoded island not yet in Firestore
+      const existingNames = new Set(docs.map(d => d.name));
+      const missing = KIRIBATI_ISLANDS.filter(name => !existingNames.has(name));
+      missing.forEach(name => {
+        addDoc(collection(db, 'islands'), { name, region: '', notes: '', createdAt: new Date().toISOString() });
+      });
     });
     const u2 = onSnapshot(collection(db, 'cprEntries'), s =>
       setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -144,7 +152,7 @@ export default function IslandsManager() {
               style={{
                 background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
                 padding: '9px 12px', borderRadius: 8,
-                color: hasDoc ? 'var(--teal-light)' : 'var(--text-secondary)',
+                color: 'var(--teal-light)',
                 fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}
@@ -153,7 +161,7 @@ export default function IslandsManager() {
             >
               <span style={{
                 width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                background: hasDoc ? 'var(--purple)' : 'var(--border)',
+                background: 'var(--purple)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.75rem',
               }}>🏝️</span>
@@ -194,7 +202,7 @@ export default function IslandsManager() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                    background: hasDoc ? 'var(--purple)' : 'var(--border)',
+                    background: 'var(--purple)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '1.4rem',
                   }}>🏝️</div>
