@@ -1302,6 +1302,63 @@ export default function Dashboard({ onNavigate, dashBackRef }) {
           </div>
         </div>
       </div>
+
+      {/* ── #4 Needs Attention + #3 Flagged Records ── */}
+      {(() => {
+        const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+        const FOURTEEN_DAYS_AGO = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+        const TODAY = new Date().toISOString().slice(0, 10);
+
+        // Bags stuck in recently_weighed > 7 days
+        const stuckBags = stock.filter(s =>
+          s.status === 'recently_weighed' && s.updatedAt && s.updatedAt.slice(0, 10) < SEVEN_DAYS_AGO);
+
+        // Cooperatives with zero CPR activity this month
+        const thisMonth = new Date().toISOString().slice(0, 7);
+        const activeCooops = new Set(cprList.filter(c => (c.date || '').startsWith(thisMonth)).map(c => c.cooperative_name));
+        const inactiveCooops = [...new Set(cprList.map(c => c.cooperative_name).filter(Boolean))].filter(c => !activeCooops.has(c));
+
+        // Inspectors with no CPR in 14 days
+        const recentCprEmails = new Set(cprList.filter(c => c.date >= FOURTEEN_DAYS_AGO).map(c => c.inspectorEmail).filter(Boolean));
+        const inactiveInspectors = inspectors.filter(u => u.email && !recentCprEmails.has(u.email));
+
+        // #3 Flagged: zero-weight CPRs and duplicate bag serials
+        const zeroCprs = cprList.filter(c => !parseFloat(c.total_weight_cpr));
+        const serialCounts = {};
+        stock.forEach(s => { if (s.bagSerial) serialCounts[s.bagSerial] = (serialCounts[s.bagSerial] || 0) + 1; });
+        const dupSerials = Object.entries(serialCounts).filter(([, n]) => n > 1);
+
+        const alerts = [
+          ...stuckBags.map(b => ({ type: 'warn', msg: `Bag ${b.bagSerial || b.id} stuck in "Recently Weighed" for over 7 days` })),
+          ...inactiveCooops.slice(0, 3).map(c => ({ type: 'info', msg: `${c} — no CPR activity this month` })),
+          ...inactiveInspectors.slice(0, 3).map(u => ({ type: 'info', msg: `${u.displayName || u.email} — no CPR filed in 14 days` })),
+          ...zeroCprs.slice(0, 3).map(c => ({ type: 'error', msg: `CPR #${c.cpr_number || c.id} has zero weight — possible data error` })),
+          ...dupSerials.slice(0, 3).map(([s, n]) => ({ type: 'error', msg: `Bag serial ${s} appears ${n} times — possible duplicate` })),
+        ];
+
+        if (alerts.length === 0) return null;
+
+        const colMap = { warn: 'var(--amber)', info: 'var(--teal)', error: 'var(--red)' };
+        const iconMap = { warn: '⚠️', info: 'ℹ️', error: '🚨' };
+
+        return (
+          <div style={{ marginTop: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', background: 'var(--navy)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '1rem' }}>🔔</span>
+              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Needs Attention</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.72rem', background: 'var(--red)', color: '#fff', borderRadius: 99, padding: '2px 8px', fontWeight: 700 }}>{alerts.length}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {alerts.map((a, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px', borderBottom: i < alerts.length - 1 ? '1px solid var(--border-dim)' : 'none', borderLeft: `3px solid ${colMap[a.type]}` }}>
+                  <span style={{ fontSize: '0.85rem', flexShrink: 0 }}>{iconMap[a.type]}</span>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{a.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
