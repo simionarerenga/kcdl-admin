@@ -35,15 +35,15 @@ export default function StationsManager() {
   function openEdit(st) { setForm({ stationName:st.stationName||'', stationCode:st.stationCode||'', island:st.island||'', region:st.region||'', contactName:st.contactName||'', contactPhone:st.contactPhone||'', contactEmail:st.contactEmail||'', notes:st.notes||'' }); setModal(st); }
 
   async function handleSave() {
-    if (!form.stationName.trim()) { flash('⚠️ Station name is required.'); return; }
+    if (!form.stationName.trim()) { flash('⚠️ Village name is required.'); return; }
     setSaving(true);
     try {
       if (modal === 'add') {
         await addDoc(collection(db,'stations'), { ...form, createdAt: new Date().toISOString() });
-        flash('✅ Station created.');
+        flash('✅ Village created.');
       } else {
         await updateDoc(doc(db,'users', modal.id), { ...form, updatedAt: new Date().toISOString() });
-        flash('✅ Station updated.');
+        flash('✅ Village updated.');
       }
       setModal(null);
     } catch(e) { flash('❌ ' + e.message); }
@@ -65,17 +65,17 @@ export default function StationsManager() {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">🏝️ Stations</div>
-          <div className="page-subtitle">Manage all outer island inspection stations</div>
+          <div className="page-title">🏘️ Villages</div>
+          <div className="page-subtitle">Manage all outer island inspection villages</div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={openAdd} type="button">+ Add Station</button>
+        <button className="btn btn-primary btn-sm" onClick={openAdd} type="button">+ Add Village</button>
       </div>
 
       {msg && <div className={`flash-bar ${msg.startsWith('✅')?'flash-success':'flash-error'}`}>{msg}</div>}
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
         {[
-          { icon:'📡', val:stations.length, lbl:'Total Stations', col:'var(--teal)' },
+          { icon:'📡', val:stations.length, lbl:'Total Villages', col:'var(--teal)' },
           { icon:'👤', val: stations.filter(s=>s.email).length, lbl:'Provisioned Users', col:'var(--green)' },
           { icon:'📋', val: cprs.length, lbl:'Total CPRs Filed', col:'var(--gold)' },
         ].map(s => (
@@ -89,7 +89,7 @@ export default function StationsManager() {
 
       <div className="toolbar" style={{ marginBottom:16 }}>
         <div className="search-bar">
-          <input placeholder="Search station name, island, email…" value={search}
+          <input placeholder="Search village name, island, email…" value={search}
             onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
@@ -106,7 +106,7 @@ export default function StationsManager() {
                 </div>
                 <div style={{ flex:1, overflow:'hidden' }}>
                   <div style={{ fontFamily:'var(--font-head)', fontWeight:700, fontSize:'1rem', color:'var(--text-primary)' }}>
-                    {st.stationName || 'Unnamed Station'}
+                    {st.stationName || 'Unnamed Village'}
                   </div>
                   <div style={{ fontSize:'0.75rem', color:'var(--teal-light)', fontFamily:'var(--font-mono)' }}>
                     {st.stationCode || st.stationId || st.id}
@@ -145,7 +145,7 @@ export default function StationsManager() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="empty-state"><div className="empty-state-icon">📡</div><div className="empty-state-text">No stations found</div></div>
+        <div className="empty-state"><div className="empty-state-icon">📡</div><div className="empty-state-text">No villages found</div></div>
       )}
 
       {/* Modal */}
@@ -153,17 +153,17 @@ export default function StationsManager() {
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
-              <div className="modal-title">{modal==='add' ? '+ New Station' : `Edit Station — ${modal.stationName || ''}`}</div>
+              <div className="modal-title">{modal==='add' ? '+ New Village' : `Edit Village — ${modal.stationName || ''}`}</div>
               <button className="modal-close" onClick={() => setModal(null)} type="button">✕</button>
             </div>
             <div className="modal-body">
               <div className="form-row form-row-2">
                 <div className="form-group">
-                  <label className="form-label">Station Name *</label>
+                  <label className="form-label">Village Name *</label>
                   <input className="form-input" value={form.stationName} onChange={e=>setForm(f=>({...f,stationName:e.target.value}))} placeholder="e.g. Tabiteuea Station" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Station Code</label>
+                  <label className="form-label">Village Code</label>
                   <input className="form-input" value={form.stationCode} onChange={e=>setForm(f=>({...f,stationCode:e.target.value}))} placeholder="e.g. TAB" />
                 </div>
                 <div className="form-group">
@@ -200,7 +200,7 @@ export default function StationsManager() {
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setModal(null)} type="button">Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving} type="button">
-                {saving ? '…Saving' : '✓ Save Station'}
+                {saving ? '…Saving' : '✓ Save Village'}
               </button>
             </div>
           </div>
