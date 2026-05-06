@@ -1,4 +1,6 @@
 // src/sections/SettingsSection.jsx
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0';
+
 export default function SettingsSection({ user }) {
   return (
     <div>
@@ -61,7 +63,7 @@ export default function SettingsSection({ user }) {
               ['App Name',     'KCDL Admin'],
               ['Organisation', 'Kiribati Copra Development Ltd'],
               ['HQ Location',  'Tarawa, Kiribati'],
-              ['Version',      '1.0.0'],
+              ['Version',      APP_VERSION],
               ['Framework',    'React 18 + Vite 5'],
               ['Platform',     'Capacitor 6 (Android) + Electron 32'],
               ['Database',     'Firebase Firestore'],
