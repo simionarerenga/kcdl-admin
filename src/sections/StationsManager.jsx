@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { fmt } from '../utils/helpers';
+import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 const BLANK = {
   stationName: '', stationCode: '', island: '', region: '',
@@ -167,7 +168,12 @@ export default function StationsManager() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Island</label>
-                  <input className="form-input" value={form.island} onChange={e=>setForm(f=>({...f,island:e.target.value}))} placeholder="e.g. Tabiteuea" />
+                  <select className="form-select" value={form.island}
+                    onChange={e => setForm(f => ({ ...f, island: e.target.value }))}
+                    style={!form.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
+                    <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
+                    {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Region</label>
