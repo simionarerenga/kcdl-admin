@@ -11,7 +11,7 @@ function codeFromName(name) {
   return words.slice(0, 3).map(w => w[0]).join('').toUpperCase();
 }
 
-const BLANK = { name: '', code: '', island: '', contactName: '', contactPhone: '', notes: '' };
+const BLANK = { name: '', code: '', island: '', village: '', contactName: '', contactPhone: '', notes: '' };
 
 /* ── Searchable Cooperative Picker ─────────────────────────────────────── */
 function CoopSearchSelect({ coops, value, onChange, placeholder = '— Search Cooperatives —' }) {
@@ -113,6 +113,7 @@ function CoopSearchSelect({ coops, value, onChange, placeholder = '— Search Co
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export default function CooperativesManager() {
   const [coops,     setCoops]     = useState([]);
+  const [villages,  setVillages]  = useState([]);
   const [cprs,      setCprs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState(null);
@@ -129,9 +130,11 @@ export default function CooperativesManager() {
       setCoops(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
+    const u2 = onSnapshot(collection(db, 'villages'), s =>
+      setVillages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const u3 = onSnapshot(collection(db, 'cprEntries'), s =>
       setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u3(); };
+    return () => { u1(); u2(); u3(); };
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
@@ -141,7 +144,7 @@ export default function CooperativesManager() {
 
   function openAdd()   { setForm(BLANK); setModal('add'); }
   function openEdit(c) {
-    setForm({ name: c.name || '', code: c.code || '', island: c.island || '', contactName: c.contactName || '', contactPhone: c.contactPhone || '', notes: c.notes || '' });
+    setForm({ name: c.name || '', code: c.code || '', island: c.island || '', village: c.village || '', contactName: c.contactName || '', contactPhone: c.contactPhone || '', notes: c.notes || '' });
     setModal(c);
   }
 
@@ -307,6 +310,7 @@ export default function CooperativesManager() {
                 {[
                   ['📋 CPR Sessions',   coopCprs.length],
                   ['🏝️ Island',         c.island       || '—'],
+                  ['🏘️ Village',        c.village      || '—'],
                   ['🏷️ Code',           c.code || codeFromName(c.name) || '—'],
                   ['👤 Contact',        c.contactName  || '—'],
                   ['📞 Phone',          c.contactPhone || '—'],
@@ -350,6 +354,19 @@ export default function CooperativesManager() {
                   style={!form.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                   <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
                   {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
+                </select>
+              </div>
+
+              {/* Village */}
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label className="form-label">Village</label>
+                <select className="form-select" value={form.village}
+                  onChange={e => setField('village', e.target.value)}
+                  style={!form.village ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
+                  <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Village —</option>
+                  {villages
+                    .filter(v => !form.island || v.island === form.island)
+                    .map(v => <option key={v.id} value={v.name} style={{ color: 'inherit', fontStyle: 'normal' }}>{v.name}</option>)}
                 </select>
               </div>
 
