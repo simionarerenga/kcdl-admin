@@ -4,7 +4,7 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { fmt, sumField, STATUS_LABELS, STATUS_BADGE, csvExport } from '../utils/helpers';
 
-const STATUSES = ['recently_weighed','in_shed','in_warehouse','ready_to_ship','shipped'];
+const STATUSES = ['recently_weighed','in_warehouse','ready_to_ship','shipped'];
 
 export default function ShedWarehouseMonitor() {
   const [stock,    setStock]    = useState([]);
@@ -65,19 +65,18 @@ export default function ShedWarehouseMonitor() {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">⚖️ Shed & Warehouse Monitor</div>
-          <div className="page-subtitle">All bag inventory across all outer island stations</div>
+          <div className="page-title">⚖️ Warehouse Monitor</div>
+          <div className="page-subtitle">All bag inventory across all outer island villages</div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleExport} type="button">⬇ Export CSV</button>
       </div>
 
       {/* Status summary */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(5,1fr)', marginBottom: 20 }}>
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 20 }}>
         {[
-          { status:'recently_weighed', icon:'🆕', col:'var(--amber)' },
-          { status:'in_shed',          icon:'🏚️', col:'var(--teal)' },
-          { status:'in_warehouse',     icon:'🏢', col:'var(--purple)' },
-          { status:'ready_to_ship',    icon:'✅', col:'var(--green)' },
+          { status:'recently_weighed', icon:'🆕', col:'var(--amber)'      },
+          { status:'in_warehouse',     icon:'🏢', col:'var(--purple)'     },
+          { status:'ready_to_ship',    icon:'✅', col:'var(--green)'      },
           { status:'shipped',          icon:'🛳️', col:'var(--text-muted)' },
         ].map(({ status, icon, col }) => (
           <div key={status} className="stat-card" style={{ '--accent-color': col, cursor:'pointer' }}
@@ -111,7 +110,7 @@ export default function ShedWarehouseMonitor() {
             onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="form-select" style={{ width: 190 }} value={station} onChange={e => setStation(e.target.value)}>
-          <option value="">All Stations</option>
+          <option value="">All Villages</option>
           {stations.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {(search||station) && (
@@ -131,7 +130,7 @@ export default function ShedWarehouseMonitor() {
               <th>Status</th>
               <th>Farmer</th>
               <th>Farmer ID</th>
-              <th>Station</th>
+              <th>Village</th>
               <th>Weight (kg)</th>
               <th>Pre-Ship (kg)</th>
               <th>Weighed At</th>
@@ -205,7 +204,7 @@ export default function ShedWarehouseMonitor() {
                   ['Bag Serial',    detail.bagSerial],
                   ['Farmer',        detail.farmerName],
                   ['Farmer ID',     detail.farmerId],
-                  ['Station',       detail.stationId],
+                  ['Village',       detail.stationId],
                   ['Weight (kg)',   detail.stationWeight ? fmt.kg(detail.stationWeight) : '—'],
                   ['Pre-Ship (kg)', detail.preShipWeight ? fmt.kg(detail.preShipWeight) : '—'],
                   ['Weighed At',    fmt.datetime(detail.weighedAt || detail.createdAt)],
