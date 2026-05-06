@@ -9,32 +9,56 @@ const PALETTE = ['#007c91','#e8a000','#8b5cf6','#22c55e','#ef4444','#f59e0b','#0
 /* ─── Bar chart ──────────────────────────────────────── */
 function BarChart({ data, height = 180, valueKey = 'value', labelKey = 'label', color = '#007c91', valueFormatter = v => v }) {
   const max = Math.max(...data.map(d => d[valueKey]), 1);
-  const barW = Math.max(44, Math.floor(300 / Math.max(data.length, 1)));
-  const totalW = data.length * (barW + 6);
+  const barW = Math.max(36, Math.floor(300 / Math.max(data.length, 1)));
+  const totalW = data.length * (barW + 8);
+  const labelH = 52; // space reserved below bars for rotated labels
   return (
     <div style={{ overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height, paddingBottom: 28, minWidth: totalW, position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: height + labelH, paddingBottom: labelH, minWidth: totalW, position: 'relative' }}>
         {data.map((d, i) => {
           const pct = (d[valueKey] / max) * 100;
           return (
             <div key={i}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: barW, flexShrink: 0, position: 'relative' }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: barW, flexShrink: 0, position: 'relative', height: '100%', justifyContent: 'flex-end' }}
               title={`${d[labelKey]}: ${valueFormatter(d[valueKey])}`}
             >
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 4, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+              {/* Value above bar */}
+              <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginBottom: 3, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
                 {valueFormatter(d[valueKey])}
               </div>
+              {/* Bar */}
               <div style={{
-                width: '100%',
+                width: '80%',
                 background: typeof color === 'string' ? color : PALETTE[i % PALETTE.length],
-                borderRadius: '4px 4px 0 0', transition: 'height 0.6s ease',
+                borderRadius: '4px 4px 0 0',
                 height: `${pct}%`, minHeight: d[valueKey] > 0 ? 4 : 0,
+                transition: 'height 0.6s ease',
               }} />
+              {/* Rotated label below bar */}
               <div style={{
-                position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
-                fontSize: '0.6rem', color: 'var(--text-muted)', whiteSpace: 'nowrap',
+                position: 'absolute',
+                bottom: 0,
+                left: '50%',
+                height: labelH,
+                display: 'flex',
+                alignItems: 'flex-start',
+                paddingTop: 6,
+                transformOrigin: 'top center',
+                transform: 'translateX(-50%)',
+                width: barW + 8,
+                justifyContent: 'center',
               }}>
-                {d[labelKey]}
+                <span style={{
+                  fontSize: '0.62rem',
+                  color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap',
+                  display: 'block',
+                  transform: 'rotate(-40deg)',
+                  transformOrigin: 'top center',
+                  lineHeight: 1,
+                }}>
+                  {d[labelKey]}
+                </span>
               </div>
             </div>
           );
