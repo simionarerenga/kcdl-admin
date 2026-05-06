@@ -84,6 +84,7 @@ export default function UserManagement() {
   const [search,      setSearch]     = useState('');
   const [confirmDel,  setConfirmDel] = useState(null);
   const [showPw,      setShowPw]     = useState(false);
+  const [viewUser,    setViewUser]   = useState(null); // profile card modal
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'users'),        s => { setUsers(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); });
@@ -253,52 +254,101 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* User list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {filtered.map(u => {
-          const initials = (u.email || u.displayName || '?').slice(0, 2).toUpperCase();
-          const coopLabel = u.cooperativeName || u.stationName || '—';
-          return (
-            <div key={u.id} className="user-card">
-              <div className="user-card-avatar" style={{ background: u.role === 'admin' ? 'var(--gold)' : 'var(--teal)' }}>
-                {initials}
-              </div>
-              <div className="user-card-info">
-                <div className="user-card-name">{u.displayName || u.email || u.id}</div>
-                <div className="user-card-email">{u.email || '—'}</div>
-                <div className="user-card-meta">
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>{u.stationId || '—'}</span>
-                  {coopLabel !== '—' && <span> · {coopLabel}</span>}
-                  {u.island && <span> · {u.island}</span>}
+      {/* User list — two-column clickable names */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+        {filtered.map(u => (
+          <button
+            key={u.id}
+            type="button"
+            onClick={() => setViewUser(u)}
+            style={{
+              background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
+              padding: '9px 12px', borderRadius: 8, color: 'var(--teal-light)',
+              fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <span style={{
+              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              background: u.role === 'admin' ? 'var(--gold)' : 'var(--teal)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.65rem', fontWeight: 800, color: '#fff',
+            }}>
+              {(u.displayName || u.email || '?').slice(0, 2).toUpperCase()}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {u.displayName || u.email || u.id}
+            </span>
+          </button>
+        ))}
+      </div>
+      {filtered.length === 0 && (
+        <div className="empty-state">
+          <div className="empty-state-icon">👤</div>
+          <div className="empty-state-text">No users found</div>
+        </div>
+      )}
+
+      {/* ══════════════ PROFILE VIEW MODAL ══════════════ */}
+      {viewUser && (
+        <div className="modal-overlay" onClick={() => setViewUser(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-head">
+              <div className="modal-title">👤 Inspector Profile</div>
+              <button className="modal-close" onClick={() => setViewUser(null)} type="button">✕</button>
+            </div>
+            <div className="modal-body">
+              {/* Avatar + name */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                <div style={{
+                  width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                  background: viewUser.role === 'admin' ? 'var(--gold)' : 'var(--teal)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.1rem', fontWeight: 800, color: '#fff',
+                }}>
+                  {(viewUser.displayName || viewUser.email || '?').slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                    {viewUser.displayName || '—'}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {viewUser.email || '—'}
+                  </div>
+                  <div style={{ marginTop: 5, display: 'flex', gap: 6 }}>
+                    <span className={`tbl-badge ${viewUser.role === 'admin' ? 'badge-gold' : 'badge-teal'}`} style={{ fontSize: '0.68rem' }}>
+                      {viewUser.role === 'admin' ? 'Admin' : 'Copra Inspector'}
+                    </span>
+                    {viewUser.provisioned !== false && (
+                      <span className="tbl-badge badge-green" style={{ fontSize: '0.68rem' }}>Active</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                <span className={`tbl-badge ${u.role === 'admin' ? 'badge-gold' : 'badge-teal'}`} style={{ fontSize: '0.68rem' }}>
-                  {u.role === 'admin' ? 'Admin' : 'Copra Inspector'}
-                </span>
-                {u.provisioned !== false && (
-                  <span className="tbl-badge badge-green" style={{ fontSize: '0.65rem' }}>Active</span>
-                )}
-                {u.createdAt && (
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    Since {fmt.date(u.createdAt)}
-                  </div>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => openEditInspector(u)} type="button">Edit</button>
-                <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(u)} type="button">Remove</button>
-              </div>
+
+              {/* Detail rows */}
+              {[
+                ['🏝️ Island',    viewUser.island          || '—'],
+                ['📞 Phone',     viewUser.phone           || '—'],
+                ['💬 WhatsApp',  viewUser.whatsapp        || '—'],
+                ['🗓️ Since',     viewUser.createdAt ? fmt.date(viewUser.createdAt) : '—'],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+                  <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{value}</span>
+                </div>
+              ))}
             </div>
-          );
-        })}
-        {filtered.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-icon">👤</div>
-            <div className="empty-state-text">No users found</div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost" onClick={() => setViewUser(null)} type="button">Close</button>
+              <button className="btn btn-secondary" onClick={() => { setViewUser(null); openEditInspector(viewUser); }} type="button">✏️ Edit</button>
+              <button className="btn btn-danger" onClick={() => { setViewUser(null); setConfirmDel(viewUser); }} type="button">Remove</button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ══════════════ ADD INSPECTOR MODAL ══════════════ */}
       {modalType === 'inspector' && (
@@ -315,10 +365,10 @@ export default function UserManagement() {
               {/* ── Row 1: Island ── */}
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Island</label>
-                <select className="form-select" style={{ maxWidth: 320 }}
+                <select className="form-select" style={{ maxWidth: 320, ...(!inspForm.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}) }}
                   value={inspForm.island} onChange={e => handleIslandChange(e.target.value)}>
-                  <option value="">— Select Island —</option>
-                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl}>{isl}</option>)}
+                  <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
+                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
                 </select>
               </div>
 
