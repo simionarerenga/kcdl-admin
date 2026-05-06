@@ -63,7 +63,7 @@ export default function CPRMonitor() {
       <div className="page-header">
         <div>
           <div className="page-title">📋 CPR Records</div>
-          <div className="page-subtitle">Copra Purchase Receipts from all outer island stations</div>
+          <div className="page-subtitle">Copra Purchase Receipts from all outer island villages</div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleExport} type="button">⬇ Export CSV</button>
       </div>
@@ -180,7 +180,7 @@ export default function CPRMonitor() {
                   ['Island',       detail.island],
                   ['Cooperative',  detail.cooperative_name],
                   ['Inspector',    detail.inspectorEmail || detail.copra_inspector_name],
-                  ['Station ID',   detail.stationId],
+                  ['Village',   detail.stationId],
                   ['Start Time',   fmt.time12(detail.start_time)],
                   ['End Time',     fmt.time12(detail.end_time)],
                   ['Total Weight', detail.total_weight_cpr ? fmt.kg(detail.total_weight_cpr) : '—'],
