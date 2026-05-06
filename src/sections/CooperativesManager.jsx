@@ -1,7 +1,8 @@
 // src/sections/CooperativesManager.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 function codeFromName(name) {
   if (!name) return '';
@@ -12,16 +13,114 @@ function codeFromName(name) {
 
 const BLANK = { name: '', code: '', island: '', contactName: '', contactPhone: '', notes: '' };
 
+/* ── Searchable Cooperative Picker ─────────────────────────────────────── */
+function CoopSearchSelect({ coops, value, onChange, placeholder = '— Search Cooperatives —' }) {
+  const [query,  setQuery]  = useState('');
+  const [open,   setOpen]   = useState(false);
+  const ref = useRef(null);
+
+  const chosen = coops.find(c => c.id === value || c.name === value);
+  const display = chosen ? chosen.name : '';
+
+  const filtered = useMemo(() => {
+    if (!query) return coops;
+    const q = query.toLowerCase();
+    return coops.filter(c =>
+      (c.name   || '').toLowerCase().includes(q) ||
+      (c.island || '').toLowerCase().includes(q));
+  }, [coops, query]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handle(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  function select(coop) {
+    onChange(coop.name);
+    setQuery('');
+    setOpen(false);
+  }
+
+  function clear() { onChange(''); setQuery(''); setOpen(false); }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          className="form-input"
+          value={open ? query : display}
+          placeholder={placeholder}
+          onFocus={() => { setOpen(true); setQuery(''); }}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          style={{
+            fontStyle: !display && !open ? 'italic' : 'normal',
+            color:     !display && !open ? 'var(--text-muted)' : 'inherit',
+            paddingRight: 32,
+          }}
+        />
+        {display && !open && (
+          <button type="button" onClick={clear}
+            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1 }}>
+            ×
+          </button>
+        )}
+      </div>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          zIndex: 999, maxHeight: 220, overflowY: 'auto',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '10px 14px', fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              No cooperatives found
+            </div>
+          ) : (
+            filtered.map(c => (
+              <button key={c.id} type="button" onClick={() => select(c)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', padding: '9px 14px', background: 'none',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  borderBottom: '1px solid var(--border-dim)',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              >
+                <span style={{
+                  width: 28, height: 28, borderRadius: 6, background: 'var(--teal)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.65rem', fontWeight: 800, color: '#fff', flexShrink: 0,
+                  fontFamily: 'var(--font-mono)',
+                }}>{c.code || codeFromName(c.name)}</span>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
+                  {c.island && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{c.island}</div>}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Main Component ─────────────────────────────────────────────────────── */
 export default function CooperativesManager() {
-  const [coops,    setCoops]    = useState([]);
-  const [islands,  setIslands]  = useState([]);
-  const [cprs,     setCprs]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [modal,    setModal]    = useState(null);  // null | 'add' | coop-obj
-  const [form,     setForm]     = useState(BLANK);
-  const [saving,   setSaving]   = useState(false);
-  const [msg,      setMsg]      = useState('');
-  const [search,   setSearch]   = useState('');
+  const [coops,     setCoops]     = useState([]);
+  const [cprs,      setCprs]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [modal,     setModal]     = useState(null);
+  const [viewCoop,  setViewCoop]  = useState(null);
+  const [form,      setForm]      = useState(BLANK);
+  const [saving,    setSaving]    = useState(false);
+  const [msg,       setMsg]       = useState('');
+  const [search,    setSearch]    = useState('');
   const [filterIsland, setFilterIsland] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
 
@@ -30,30 +129,19 @@ export default function CooperativesManager() {
       setCoops(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-    const u2 = onSnapshot(collection(db, 'islands'), s =>
-      setIslands(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const u3 = onSnapshot(collection(db, 'cprEntries'), s =>
       setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); };
+    return () => { u1(); u3(); };
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
 
-  const islandList = useMemo(() => {
-    const fromIslands = islands.map(i => i.name).filter(Boolean);
-    const fromCoops   = coops.map(c => c.island).filter(Boolean);
-    return [...new Set([...fromIslands, ...fromCoops])].sort();
-  }, [islands, coops]);
-
   function setField(key, val) { setForm(f => ({ ...f, [key]: val })); }
-
-  function handleNameChange(name) {
-    setForm(f => ({ ...f, name, code: codeFromName(name) }));
-  }
+  function handleNameChange(name) { setForm(f => ({ ...f, name, code: codeFromName(name) })); }
 
   function openAdd()   { setForm(BLANK); setModal('add'); }
   function openEdit(c) {
-    setForm({ name: c.name||'', code: c.code||'', island: c.island||'', contactName: c.contactName||'', contactPhone: c.contactPhone||'', notes: c.notes||'' });
+    setForm({ name: c.name || '', code: c.code || '', island: c.island || '', contactName: c.contactName || '', contactPhone: c.contactPhone || '', notes: c.notes || '' });
     setModal(c);
   }
 
@@ -90,9 +178,9 @@ export default function CooperativesManager() {
       if (filterIsland && c.island !== filterIsland) return false;
       if (!search) return true;
       const q = search.toLowerCase();
-      return (c.name   ||'').toLowerCase().includes(q) ||
-             (c.island ||'').toLowerCase().includes(q) ||
-             (c.code   ||'').toLowerCase().includes(q);
+      return (c.name   || '').toLowerCase().includes(q) ||
+             (c.island || '').toLowerCase().includes(q) ||
+             (c.code   || '').toLowerCase().includes(q);
     });
   }, [coops, search, filterIsland]);
 
@@ -116,9 +204,9 @@ export default function CooperativesManager() {
       {/* Stats */}
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
         {[
-          { icon: '🤝', val: coops.length,    lbl: 'Cooperatives',   col: 'var(--teal)'   },
-          { icon: '🏝️', val: [...new Set(coops.map(c => c.island).filter(Boolean))].length, lbl: 'Islands',  col: 'var(--gold)' },
-          { icon: '📋', val: cprs.length,     lbl: 'CPRs Filed',     col: 'var(--purple)' },
+          { icon: '🤝', val: coops.length,  lbl: 'Cooperatives', col: 'var(--teal)'   },
+          { icon: '🏝️', val: [...new Set(coops.map(c => c.island).filter(Boolean))].length, lbl: 'Islands', col: 'var(--gold)' },
+          { icon: '📋', val: cprs.length,   lbl: 'CPRs Filed',   col: 'var(--purple)' },
         ].map(s => (
           <div key={s.lbl} className="stat-card" style={{ '--accent-color': s.col }}>
             <div className="stat-icon">{s.icon}</div>
@@ -137,60 +225,48 @@ export default function CooperativesManager() {
         <select className="form-select" style={{ width: 'auto', minWidth: 140, fontSize: '0.83rem' }}
           value={filterIsland} onChange={e => setFilterIsland(e.target.value)}>
           <option value="">🏝️ All Islands</option>
-          {islandList.map(isl => <option key={isl} value={isl}>{isl}</option>)}
+          {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl}>{isl}</option>)}
         </select>
         <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
           {filtered.length} of {coops.length}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {filtered.map(c => {
-          const coopCprs = cprs.filter(r => (r.cooperative_name || r.cooperativeName || r.stationId) === (c.name || c.id));
-          return (
-            <div key={c.id} className="card">
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 12, background: 'var(--teal)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.85rem', fontWeight: 800, color: '#fff',
-                  fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', flexShrink: 0,
-                }}>
-                  {c.code || codeFromName(c.name)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                    {c.name}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--teal-light)', marginTop: 2 }}>{c.island || '—'}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => openEdit(c)} type="button">Edit</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(c)} type="button">×</button>
-                </div>
-              </div>
-              <div className="divider" style={{ margin: '10px 0' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {[
-                  ['📋 CPR Sessions', coopCprs.length],
-                  ['👤 Contact', c.contactName || '—'],
-                  ['📞 Phone', c.contactPhone || '—'],
-                  ['🏷️ Code', c.code || codeFromName(c.name) || '—'],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{k}</div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2 }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              {c.notes && (
-                <div style={{ marginTop: 10, fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--navy)', borderRadius: 6, padding: '8px 10px', lineHeight: 1.5 }}>
-                  📝 {c.notes}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Two-column clickable name list */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+        {filtered.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setViewCoop(c)}
+            style={{
+              background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
+              padding: '9px 12px', borderRadius: 8, color: 'var(--teal-light)',
+              fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <span style={{
+              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+              background: 'var(--teal)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.6rem', fontWeight: 800, color: '#fff',
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
+            }}>
+              {c.code || codeFromName(c.name)}
+            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c.name}
+            </span>
+            {c.island && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
+                {c.island}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 && (
@@ -200,7 +276,63 @@ export default function CooperativesManager() {
         </div>
       )}
 
-      {/* Add / Edit modal */}
+      {/* ══ PROFILE VIEW MODAL ══ */}
+      {viewCoop && (() => {
+        const c = viewCoop;
+        const coopCprs = cprs.filter(r =>
+          (r.cooperative_name || r.cooperativeName || r.stationId) === (c.name || c.id));
+        return (
+          <div className="modal-overlay" onClick={() => setViewCoop(null)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <div className="modal-head">
+                <div className="modal-title">🤝 Cooperative Profile</div>
+                <button className="modal-close" onClick={() => setViewCoop(null)} type="button">✕</button>
+              </div>
+              <div className="modal-body">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: 12, flexShrink: 0,
+                    background: 'var(--teal)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.95rem', fontWeight: 800, color: '#fff',
+                    fontFamily: 'var(--font-mono)', letterSpacing: '0.1em',
+                  }}>
+                    {c.code || codeFromName(c.name)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{c.name}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--teal-light)', marginTop: 2 }}>{c.island || '—'}</div>
+                  </div>
+                </div>
+                {[
+                  ['📋 CPR Sessions',   coopCprs.length],
+                  ['🏝️ Island',         c.island       || '—'],
+                  ['🏷️ Code',           c.code || codeFromName(c.name) || '—'],
+                  ['👤 Contact',        c.contactName  || '—'],
+                  ['📞 Phone',          c.contactPhone || '—'],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{value}</span>
+                  </div>
+                ))}
+                {c.notes && (
+                  <div style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--navy)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                    📝 {c.notes}
+                  </div>
+                )}
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setViewCoop(null)} type="button">Close</button>
+                <button className="btn btn-secondary" onClick={() => { setViewCoop(null); openEdit(c); }} type="button">✏️ Edit</button>
+                <button className="btn btn-danger" onClick={() => { setViewCoop(null); setConfirmDel(c); }} type="button">Remove</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══ ADD / EDIT MODAL ══ */}
       {modal && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
@@ -214,13 +346,14 @@ export default function CooperativesManager() {
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Island *</label>
                 <select className="form-select" value={form.island}
-                  onChange={e => setField('island', e.target.value)}>
-                  <option value="">— Select Island —</option>
-                  {islandList.map(isl => <option key={isl} value={isl}>{isl}</option>)}
+                  onChange={e => setField('island', e.target.value)}
+                  style={!form.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
+                  <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
+                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
                 </select>
               </div>
 
-              {/* Cooperative Name */}
+              {/* Name */}
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Cooperative Name *</label>
                 <input className="form-input" value={form.name}
@@ -233,7 +366,7 @@ export default function CooperativesManager() {
                 )}
               </div>
 
-              {/* Code — inline */}
+              {/* Code */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                 <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   Code <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.7rem' }}>Auto · 3 initials</span>
@@ -245,19 +378,17 @@ export default function CooperativesManager() {
                   placeholder="TAB" maxLength={3} />
               </div>
 
-              {/* Contact — side by side */}
+              {/* Contact */}
               <div style={{ display: 'flex', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 180 }}>
                   <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>Contact Name</label>
                   <input className="form-input" style={{ flex: 1 }} value={form.contactName}
-                    onChange={e => setField('contactName', e.target.value)}
-                    placeholder="Full name" />
+                    onChange={e => setField('contactName', e.target.value)} placeholder="Full name" />
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 180 }}>
                   <label className="form-label" style={{ margin: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>Phone</label>
                   <input className="form-input" style={{ flex: 1 }} value={form.contactPhone}
-                    onChange={e => setField('contactPhone', e.target.value)}
-                    placeholder="+686 730 xxxxx" />
+                    onChange={e => setField('contactPhone', e.target.value)} placeholder="+686 730 xxxxx" />
                 </div>
               </div>
 
@@ -265,8 +396,7 @@ export default function CooperativesManager() {
               <div className="form-group">
                 <label className="form-label">Notes</label>
                 <textarea className="form-textarea" rows={3} value={form.notes}
-                  onChange={e => setField('notes', e.target.value)}
-                  placeholder="Optional notes…" />
+                  onChange={e => setField('notes', e.target.value)} placeholder="Optional notes…" />
               </div>
             </div>
             <div className="modal-foot">
@@ -279,7 +409,7 @@ export default function CooperativesManager() {
         </div>
       )}
 
-      {/* Delete confirm */}
+      {/* ══ DELETE CONFIRM ══ */}
       {confirmDel && (
         <div className="modal-overlay" onClick={() => setConfirmDel(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
@@ -305,3 +435,5 @@ export default function CooperativesManager() {
     </div>
   );
 }
+
+export { CoopSearchSelect };
