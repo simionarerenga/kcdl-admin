@@ -7,20 +7,20 @@ import { KIRIBATI_ISLANDS } from '../utils/constants';
 const BLANK = { name: '', region: '', notes: '' };
 
 export default function IslandsManager() {
-  const [islands,    setIslands]    = useState([]);
-  const [cprs,       setCprs]       = useState([]);
-  const [loading,    setLoading]    = useState(true);
-  const [modal,      setModal]      = useState(null);
-  const [viewIsland, setViewIsland] = useState(null);
-  const [form,       setForm]       = useState(BLANK);
-  const [saving,     setSaving]     = useState(false);
-  const [msg,        setMsg]        = useState('');
-  const [search,     setSearch]     = useState('');
-  const [confirmDel, setConfirmDel] = useState(null);
+  const [firestoreIslands, setFirestoreIslands] = useState([]);
+  const [cprs,             setCprs]             = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [modal,            setModal]            = useState(null);   // null | 'add' | island-obj
+  const [viewIsland,       setViewIsland]       = useState(null);   // { name, region, notes, id? }
+  const [form,             setForm]             = useState(BLANK);
+  const [saving,           setSaving]           = useState(false);
+  const [msg,              setMsg]              = useState('');
+  const [search,           setSearch]           = useState('');
+  const [confirmDel,       setConfirmDel]       = useState(null);
 
   useEffect(() => {
     const u1 = onSnapshot(collection(db, 'islands'), s => {
-      setIslands(s.docs.map(d => ({ id: d.id, ...d.data() })));
+      setFirestoreIslands(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
     const u2 = onSnapshot(collection(db, 'cprEntries'), s =>
@@ -30,19 +30,45 @@ export default function IslandsManager() {
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
 
+  // Merge KIRIBATI_ISLANDS with Firestore docs.
+  // Every hardcoded island is always shown; Firestore adds extra islands + enriches existing ones.
+  const mergedIslands = useMemo(() => {
+    const byName = {};
+    // Seed with hardcoded list (no Firestore id)
+    KIRIBATI_ISLANDS.forEach(name => { byName[name] = { name }; });
+    // Layer Firestore docs on top
+    firestoreIslands.forEach(il => {
+      byName[il.name] = { ...byName[il.name], ...il };
+    });
+    // Add any Firestore islands not in the hardcoded list
+    firestoreIslands.forEach(il => {
+      if (!byName[il.name]) byName[il.name] = il;
+    });
+    return Object.values(byName);
+  }, [firestoreIslands]);
+
+  const filtered = useMemo(() => {
+    if (!search) return mergedIslands;
+    const q = search.toLowerCase();
+    return mergedIslands.filter(il =>
+      (il.name   || '').toLowerCase().includes(q) ||
+      (il.region || '').toLowerCase().includes(q));
+  }, [mergedIslands, search]);
+
   function openAdd()    { setForm(BLANK); setModal('add'); }
   function openEdit(il) {
     setForm({ name: il.name || '', region: il.region || '', notes: il.notes || '' });
-    setModal(il);
+    setModal(il.id ? il : 'add-named'); // if no Firestore doc, open add with name pre-filled
+    if (!il.id) setForm({ name: il.name, region: il.region || '', notes: il.notes || '' });
   }
 
   async function handleSave() {
     if (!form.name.trim()) { flash('⚠️ Island name is required.'); return; }
     setSaving(true);
     try {
-      if (modal === 'add') {
+      if (modal === 'add' || modal === 'add-named') {
         await addDoc(collection(db, 'islands'), { ...form, createdAt: new Date().toISOString() });
-        flash('✅ Island added.');
+        flash('✅ Island added to registry.');
       } else {
         await updateDoc(doc(db, 'islands', modal.id), { ...form, updatedAt: new Date().toISOString() });
         flash('✅ Island updated.');
@@ -53,24 +79,19 @@ export default function IslandsManager() {
   }
 
   async function handleDelete(il) {
+    if (!il.id) return; // can't delete a hardcoded-only entry
     setSaving(true);
     try {
       await deleteDoc(doc(db, 'islands', il.id));
-      flash(`✅ ${il.name} removed.`);
+      flash(`✅ ${il.name} removed from registry.`);
       setConfirmDel(null);
     } catch (e) { flash('❌ ' + e.message); }
     finally { setSaving(false); }
   }
 
-  const filtered = useMemo(() => {
-    if (!search) return islands;
-    const q = search.toLowerCase();
-    return islands.filter(il =>
-      (il.name   || '').toLowerCase().includes(q) ||
-      (il.region || '').toLowerCase().includes(q));
-  }, [islands, search]);
-
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
+
+  const registeredCount = firestoreIslands.length;
 
   return (
     <div>
@@ -89,9 +110,9 @@ export default function IslandsManager() {
 
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
         {[
-          { icon: '🏝️', val: islands.length, lbl: 'Total Islands', col: 'var(--teal)' },
-          { icon: '📋', val: cprs.length,    lbl: 'CPRs Filed',    col: 'var(--gold)' },
-          { icon: '🗺️', val: [...new Set(islands.map(i => i.region).filter(Boolean))].length, lbl: 'Regions', col: 'var(--purple)' },
+          { icon: '🏝️', val: mergedIslands.length, lbl: 'Total Islands',    col: 'var(--teal)'   },
+          { icon: '📋', val: cprs.length,           lbl: 'CPRs Filed',       col: 'var(--gold)'   },
+          { icon: '🗂️', val: registeredCount,       lbl: 'In Registry',      col: 'var(--purple)' },
         ].map(s => (
           <div key={s.lbl} className="stat-card" style={{ '--accent-color': s.col }}>
             <div className="stat-icon">{s.icon}</div>
@@ -107,42 +128,46 @@ export default function IslandsManager() {
             onChange={e => setSearch(e.target.value)} />
         </div>
         <div style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-          {filtered.length} of {islands.length} islands
+          {filtered.length} of {mergedIslands.length} islands
         </div>
       </div>
 
       {/* Two-column clickable name list */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
-        {filtered.map(il => (
-          <button
-            key={il.id}
-            type="button"
-            onClick={() => setViewIsland(il)}
-            style={{
-              background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
-              padding: '9px 12px', borderRadius: 8, color: 'var(--teal-light)',
-              fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'none'}
-          >
-            <span style={{
-              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-              background: 'var(--purple)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.75rem',
-            }}>🏝️</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {il.name}
-            </span>
-            {il.region && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
-                {il.region}
+        {filtered.map(il => {
+          const hasDoc = !!il.id;
+          return (
+            <button
+              key={il.name}
+              type="button"
+              onClick={() => setViewIsland(il)}
+              style={{
+                background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
+                padding: '9px 12px', borderRadius: 8,
+                color: hasDoc ? 'var(--teal-light)' : 'var(--text-secondary)',
+                fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <span style={{
+                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                background: hasDoc ? 'var(--purple)' : 'var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '0.75rem',
+              }}>🏝️</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {il.name}
               </span>
-            )}
-          </button>
-        ))}
+              {il.region && (
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
+                  {il.region}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {filtered.length === 0 && (
@@ -157,6 +182,7 @@ export default function IslandsManager() {
         const il = viewIsland;
         const ilCprs = cprs.filter(c => c.island === il.name);
         const totalWeight = (ilCprs.reduce((s, c) => s + (parseFloat(c.total_weight_cpr) || 0), 0) / 1000).toFixed(2);
+        const hasDoc = !!il.id;
         return (
           <div className="modal-overlay" onClick={() => setViewIsland(null)}>
             <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
@@ -168,35 +194,49 @@ export default function IslandsManager() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-                    background: 'var(--purple)',
+                    background: hasDoc ? 'var(--purple)' : 'var(--border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '1.4rem',
                   }}>🏝️</div>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{il.name}</div>
-                    {il.region && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{il.region}</div>}
+                    {il.region
+                      ? <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{il.region}</div>
+                      : <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+                          {hasDoc ? 'No region set' : 'Not yet added to registry'}
+                        </div>
+                    }
                   </div>
                 </div>
+
                 {[
                   ['📋 CPRs Filed',   ilCprs.length],
                   ['⚖️ Total Weight', `${totalWeight} t`],
                   ['🗺️ Region',       il.region || '—'],
+                  ['📝 Notes',        il.notes  || '—'],
                 ].map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
-                    <span style={{ color: 'var(--text-primary)' }}>{value}</span>
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem', gap: 12 }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                    <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{value}</span>
                   </div>
                 ))}
-                {il.notes && (
-                  <div style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--navy)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
-                    📝 {il.notes}
+
+                {!hasDoc && (
+                  <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--navy)', borderRadius: 8, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    💡 This island is part of the Kiribati island list but hasn't been added to the registry yet. Click <strong style={{ color: 'var(--teal)' }}>Add to Registry</strong> to add region, notes and extra details.
                   </div>
                 )}
               </div>
               <div className="modal-foot">
                 <button className="btn btn-ghost" onClick={() => setViewIsland(null)} type="button">Close</button>
-                <button className="btn btn-secondary" onClick={() => { setViewIsland(null); openEdit(il); }} type="button">✏️ Edit</button>
-                <button className="btn btn-danger" onClick={() => { setViewIsland(null); setConfirmDel(il); }} type="button">Remove</button>
+                {hasDoc ? (
+                  <>
+                    <button className="btn btn-secondary" onClick={() => { setViewIsland(null); openEdit(il); }} type="button">✏️ Edit</button>
+                    <button className="btn btn-danger" onClick={() => { setViewIsland(null); setConfirmDel(il); }} type="button">Remove</button>
+                  </>
+                ) : (
+                  <button className="btn btn-primary" onClick={() => { setViewIsland(null); openEdit(il); }} type="button">+ Add to Registry</button>
+                )}
               </div>
             </div>
           </div>
@@ -208,7 +248,11 @@ export default function IslandsManager() {
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-head">
-              <div className="modal-title">{modal === 'add' ? '🏝️ Add Island' : `Edit Island — ${modal.name}`}</div>
+              <div className="modal-title">
+                {(modal === 'add' || modal === 'add-named')
+                  ? '🏝️ Add Island to Registry'
+                  : `Edit Island — ${modal.name}`}
+              </div>
               <button className="modal-close" onClick={() => setModal(null)} type="button">✕</button>
             </div>
             <div className="modal-body">
@@ -216,7 +260,10 @@ export default function IslandsManager() {
                 <label className="form-label">Island Name *</label>
                 <input className="form-input" value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Tabiteuea" autoFocus />
+                  placeholder="e.g. Tabiteuea"
+                  readOnly={modal === 'add-named'}
+                  style={modal === 'add-named' ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+                  autoFocus={modal === 'add'} />
               </div>
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Region</label>
@@ -239,7 +286,7 @@ export default function IslandsManager() {
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setModal(null)} type="button">Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving} type="button">
-                {saving ? '…Saving' : modal === 'add' ? '✓ Add Island' : '✓ Save Changes'}
+                {saving ? '…Saving' : (modal === 'add' || modal === 'add-named') ? '✓ Add to Registry' : '✓ Save Changes'}
               </button>
             </div>
           </div>
@@ -256,14 +303,14 @@ export default function IslandsManager() {
             </div>
             <div className="modal-body">
               <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Are you sure you want to remove <strong style={{ color: 'var(--text-primary)' }}>{confirmDel.name}</strong>?
-                Existing records referencing this island are not affected.
+                Are you sure you want to remove <strong style={{ color: 'var(--text-primary)' }}>{confirmDel.name}</strong> from the registry?
+                The island will still appear in the list — only its saved details will be removed.
               </p>
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setConfirmDel(null)} type="button">Cancel</button>
               <button className="btn btn-danger" onClick={() => handleDelete(confirmDel)} disabled={saving} type="button">
-                {saving ? '…Removing' : 'Remove'}
+                {saving ? '…Removing' : 'Remove from Registry'}
               </button>
             </div>
           </div>
