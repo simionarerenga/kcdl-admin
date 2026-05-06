@@ -63,7 +63,7 @@ export default function TWCMonitor() {
       <div className="page-header">
         <div>
           <div className="page-title">🚢 TWC Records</div>
-          <div className="page-subtitle">Truck Weighbridge Certificates — all island stations</div>
+          <div className="page-subtitle">Truck Weighbridge Certificates — all island villages</div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleExport} type="button">⬇ Export CSV</button>
       </div>
