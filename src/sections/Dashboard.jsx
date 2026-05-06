@@ -311,7 +311,7 @@ function DetailCPRWeight({ cprList, onBack }) {
         return {
           cooperative: coop,
           island:      items[0]?.island || '—',
-          station:     items[0]?.stationId || '—',
+          village:     items[0]?.stationId || '—',
           sessions:    items.length,
           weight,
           pct: totalW > 0 ? (weight / totalW) * 100 : 0,
@@ -320,7 +320,7 @@ function DetailCPRWeight({ cprList, onBack }) {
       .sort((a, b) => {
         if (sortField === 'island')       return sortDir === 'asc' ? a.island.localeCompare(b.island)       : b.island.localeCompare(a.island);
         if (sortField === 'cooperative')  return sortDir === 'asc' ? a.cooperative.localeCompare(b.cooperative) : b.cooperative.localeCompare(a.cooperative);
-        if (sortField === 'station')      return sortDir === 'asc' ? a.station.localeCompare(b.station)     : b.station.localeCompare(a.station);
+        if (sortField === 'village')      return sortDir === 'asc' ? a.village.localeCompare(b.village)     : b.village.localeCompare(a.village);
         const av = a[sortField], bv = b[sortField];
         return sortDir === 'asc' ? av - bv : bv - av;
       });
@@ -331,7 +331,7 @@ function DetailCPRWeight({ cprList, onBack }) {
 
   const SORT_OPTS = [
     { field: 'island',      label: 'Island' },
-    { field: 'station',     label: 'Station' },
+    { field: 'village',     label: 'Village' },
     { field: 'cooperative', label: 'Cooperative' },
     { field: 'sessions',    label: 'CPR Sessions' },
     { field: 'weight',      label: 'Total Weight' },
@@ -354,7 +354,7 @@ function DetailCPRWeight({ cprList, onBack }) {
             <tr>
               <th>#</th>
               <th>Island</th>
-              <th>Station</th>
+              <th>Village</th>
               <th>Cooperative</th>
               <th style={{ textAlign: 'right' }}>CPR Sessions</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
@@ -366,7 +366,7 @@ function DetailCPRWeight({ cprList, onBack }) {
               <tr key={r.cooperative}>
                 <td style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{i + 1}</td>
                 <td>{r.island}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{r.station}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{r.village}</td>
                 <td style={{ fontWeight: 600 }}>{r.cooperative}</td>
                 <td style={{ textAlign: 'right' }}>{r.sessions}</td>
                 <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>{fmt.kg(r.weight)}</td>
@@ -522,7 +522,7 @@ function DetailInspectors({ inspectors, onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Inspector Accounts</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} inspectors with assigned stations</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} inspectors with assigned villages</div>
         </div>
         <div className="search-bar" style={{ maxWidth: 240 }}>
           <input
@@ -542,7 +542,7 @@ function DetailInspectors({ inspectors, onBack }) {
               <th>Cooperative Assigned to</th>
               <th>Phone</th>
               <th>Email</th>
-              <th>Station ID</th>
+              <th>Village</th>
               <th>Role</th>
               <th>Village</th>
             </tr>
@@ -669,7 +669,7 @@ function DetailBagsInStorage({ stock, onBack }) {
         <table>
           <thead>
             <tr>
-              <th>Station</th>
+              <th>Village</th>
               <th style={thStyle}>Total Bags</th>
               <th style={thStyle}>Empty Bags at Shed</th>
               <th style={thStyle}>Empty Bags at Warehouse</th>
@@ -933,7 +933,7 @@ function DetailReadyToShip({ stock, onBack }) {
             <tr>
               <th>#</th>
               <th>Island</th>
-              <th>Station</th>
+              <th>Village</th>
               <th style={{ textAlign: 'right' }}>Bags</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
             </tr>
