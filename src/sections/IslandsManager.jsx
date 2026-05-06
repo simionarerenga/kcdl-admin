@@ -173,9 +173,17 @@ export default function IslandsManager() {
               </div>
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Region</label>
-                <input className="form-input" value={form.region}
+                <select
+                  className="form-select"
+                  value={form.region}
                   onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
-                  placeholder="e.g. Gilbert Islands" />
+                  style={!form.region ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}
+                >
+                  <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Region —</option>
+                  <option value="Gilbertese Group">Gilbertese Group</option>
+                  <option value="Line Islands">Line Islands</option>
+                  <option value="Phoenix Islands">Phoenix Islands</option>
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Notes</label>
