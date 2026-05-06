@@ -6,7 +6,7 @@ import { fmt, sumField, STATUS_LABELS, STATUS_BADGE, csvExport } from '../utils/
 
 const STATUSES = ['recently_weighed','in_warehouse','ready_to_ship','shipped'];
 
-export default function ShedWarehouseMonitor() {
+export default function ShedWarehouseMonitor({ onNavigate }) {
   const [stock,    setStock]    = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [tab,      setTab]      = useState('all');
@@ -228,6 +228,12 @@ export default function ShedWarehouseMonitor() {
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setDetail(null)} type="button">Close</button>
+              {detail.status === 'ready_to_ship' && onNavigate && (
+                <button className="btn btn-primary btn-sm" type="button"
+                  onClick={() => { setDetail(null); onNavigate('shipments'); }}>
+                  🛳️ View in Shipments →
+                </button>
+              )}
             </div>
           </div>
         </div>
