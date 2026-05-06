@@ -350,7 +350,7 @@ export default function CooperativesManager() {
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Island *</label>
                 <select className="form-select" value={form.island}
-                  onChange={e => setField('island', e.target.value)}
+                  onChange={e => setField('village', '') || setField('island', e.target.value)}
                   style={!form.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                   <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
                   {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
