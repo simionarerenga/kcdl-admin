@@ -19,6 +19,7 @@ import StationsManager      from './sections/StationsManager';
 import IslandsManager       from './sections/IslandsManager';
 import VillagesManager      from './sections/VillagesManager';
 import CooperativesManager  from './sections/CooperativesManager';
+import AuditLog             from './sections/AuditLog';
 import UserManagement       from './sections/UserManagement';
 import SettingsSection      from './sections/SettingsSection';
 
@@ -53,7 +54,8 @@ export const SECTIONS = [
       { id: 'islands',       icon: '🏝️', label: 'Islands',        desc: 'Outer island registry & details' },
       { id: 'villages',      icon: '🏘️', label: 'Villages',       desc: 'Village registry per island' },
       { id: 'cooperatives',  icon: '🤝', label: 'Cooperatives',   desc: 'Cooperative registry per island' },
-      { id: 'users',    icon: '👤', label: 'User Management', desc: 'Inspector accounts & access roles' },
+      { id: 'users',       icon: '👤', label: 'User Management', desc: 'Inspector accounts & access roles' },
+      { id: 'audit_log',   icon: '📋', label: 'Audit Log',        desc: 'History of all admin actions' },
       { id: 'settings', icon: '⚙️', label: 'Settings',        desc: 'System info & account details' },
     ],
   },
@@ -72,7 +74,8 @@ const SECTION_MAP = {
   islands:       IslandsManager,
   villages:      VillagesManager,
   cooperatives:  CooperativesManager,
-  users:     UserManagement,
+  users:         UserManagement,
+  audit_log:     AuditLog,
   settings:  SettingsSection,
 };
 
@@ -363,6 +366,7 @@ export default function App() {
           onNavigate={navigate}
           user={user}
           profile={profile}
+          currentUser={user}
           dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
           initialReport={section === 'reports' ? reportInit : undefined}
           reportsBackRef={section === 'reports'   ? reportsBackRef   : undefined}
