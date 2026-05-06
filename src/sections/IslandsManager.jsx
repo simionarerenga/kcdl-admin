@@ -2,18 +2,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 const BLANK = { name: '', region: '', notes: '' };
 
 export default function IslandsManager() {
-  const [islands,  setIslands]  = useState([]);
-  const [cprs,     setCprs]     = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [modal,    setModal]    = useState(null);   // null | 'add' | island-obj
-  const [form,     setForm]     = useState(BLANK);
-  const [saving,   setSaving]   = useState(false);
-  const [msg,      setMsg]      = useState('');
-  const [search,   setSearch]   = useState('');
+  const [islands,    setIslands]    = useState([]);
+  const [cprs,       setCprs]       = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [modal,      setModal]      = useState(null);
+  const [viewIsland, setViewIsland] = useState(null);
+  const [form,       setForm]       = useState(BLANK);
+  const [saving,     setSaving]     = useState(false);
+  const [msg,        setMsg]        = useState('');
+  const [search,     setSearch]     = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
 
   useEffect(() => {
@@ -29,7 +31,10 @@ export default function IslandsManager() {
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
 
   function openAdd()    { setForm(BLANK); setModal('add'); }
-  function openEdit(il) { setForm({ name: il.name||'', region: il.region||'', notes: il.notes||'' }); setModal(il); }
+  function openEdit(il) {
+    setForm({ name: il.name || '', region: il.region || '', notes: il.notes || '' });
+    setModal(il);
+  }
 
   async function handleSave() {
     if (!form.name.trim()) { flash('⚠️ Island name is required.'); return; }
@@ -61,8 +66,8 @@ export default function IslandsManager() {
     if (!search) return islands;
     const q = search.toLowerCase();
     return islands.filter(il =>
-      (il.name   ||'').toLowerCase().includes(q) ||
-      (il.region ||'').toLowerCase().includes(q));
+      (il.name   || '').toLowerCase().includes(q) ||
+      (il.region || '').toLowerCase().includes(q));
   }, [islands, search]);
 
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
@@ -82,7 +87,6 @@ export default function IslandsManager() {
           style={{ marginBottom: 16 }}>{msg}</div>
       )}
 
-      {/* Stats */}
       <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 20 }}>
         {[
           { icon: '🏝️', val: islands.length, lbl: 'Total Islands', col: 'var(--teal)' },
@@ -107,46 +111,38 @@ export default function IslandsManager() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        {filtered.map(il => {
-          const ilCprs = cprs.filter(c => c.island === il.name);
-          return (
-            <div key={il.id} className="card">
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: '2rem', flexShrink: 0 }}>🏝️</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
-                    {il.name}
-                  </div>
-                  {il.region && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{il.region}</div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-ghost btn-sm" onClick={() => openEdit(il)} type="button">Edit</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => setConfirmDel(il)} type="button">×</button>
-                </div>
-              </div>
-              <div className="divider" style={{ margin: '10px 0' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {[
-                  ['📋 CPRs Filed', ilCprs.length],
-                  ['⚖️ Total Weight', `${(ilCprs.reduce((s,c)=>s+(parseFloat(c.total_weight_cpr)||0),0)/1000).toFixed(2)} t`],
-                ].map(([k, v]) => (
-                  <div key={k}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{k}</div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>{v}</div>
-                  </div>
-                ))}
-              </div>
-              {il.notes && (
-                <div style={{ marginTop: 10, fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--navy)', borderRadius: 6, padding: '8px 10px', lineHeight: 1.5 }}>
-                  📝 {il.notes}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Two-column clickable name list */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 12px' }}>
+        {filtered.map(il => (
+          <button
+            key={il.id}
+            type="button"
+            onClick={() => setViewIsland(il)}
+            style={{
+              background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer',
+              padding: '9px 12px', borderRadius: 8, color: 'var(--teal-light)',
+              fontSize: '0.88rem', fontWeight: 600, transition: 'background 0.15s',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--teal-dim)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <span style={{
+              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              background: 'var(--purple)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.75rem',
+            }}>🏝️</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {il.name}
+            </span>
+            {il.region && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
+                {il.region}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {filtered.length === 0 && (
@@ -156,7 +152,58 @@ export default function IslandsManager() {
         </div>
       )}
 
-      {/* Add / Edit modal */}
+      {/* ══ PROFILE VIEW MODAL ══ */}
+      {viewIsland && (() => {
+        const il = viewIsland;
+        const ilCprs = cprs.filter(c => c.island === il.name);
+        const totalWeight = (ilCprs.reduce((s, c) => s + (parseFloat(c.total_weight_cpr) || 0), 0) / 1000).toFixed(2);
+        return (
+          <div className="modal-overlay" onClick={() => setViewIsland(null)}>
+            <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+              <div className="modal-head">
+                <div className="modal-title">🏝️ Island Profile</div>
+                <button className="modal-close" onClick={() => setViewIsland(null)} type="button">✕</button>
+              </div>
+              <div className="modal-body">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--purple)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.4rem',
+                  }}>🏝️</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{il.name}</div>
+                    {il.region && <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{il.region}</div>}
+                  </div>
+                </div>
+                {[
+                  ['📋 CPRs Filed',   ilCprs.length],
+                  ['⚖️ Total Weight', `${totalWeight} t`],
+                  ['🗺️ Region',       il.region || '—'],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+                    <span style={{ color: 'var(--text-primary)' }}>{value}</span>
+                  </div>
+                ))}
+                {il.notes && (
+                  <div style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--navy)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
+                    📝 {il.notes}
+                  </div>
+                )}
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setViewIsland(null)} type="button">Close</button>
+                <button className="btn btn-secondary" onClick={() => { setViewIsland(null); openEdit(il); }} type="button">✏️ Edit</button>
+                <button className="btn btn-danger" onClick={() => { setViewIsland(null); setConfirmDel(il); }} type="button">Remove</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══ ADD / EDIT MODAL ══ */}
       {modal && (
         <div className="modal-overlay" onClick={() => setModal(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
@@ -173,12 +220,9 @@ export default function IslandsManager() {
               </div>
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Region</label>
-                <select
-                  className="form-select"
-                  value={form.region}
+                <select className="form-select" value={form.region}
                   onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
-                  style={!form.region ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}
-                >
+                  style={!form.region ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                   <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Region —</option>
                   <option value="Gilbertese Group">Gilbertese Group</option>
                   <option value="Line Islands">Line Islands</option>
@@ -202,7 +246,7 @@ export default function IslandsManager() {
         </div>
       )}
 
-      {/* Delete confirm */}
+      {/* ══ DELETE CONFIRM ══ */}
       {confirmDel && (
         <div className="modal-overlay" onClick={() => setConfirmDel(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 360 }}>
