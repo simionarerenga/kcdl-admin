@@ -4,6 +4,7 @@ import { collection, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from 'fireb
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../firebase';
 import { fmt } from '../utils/helpers';
+import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 const BLANK_INSPECTOR = {
   island: '', displayName: '', email: '', password: '', phone: '', whatsapp: '',
@@ -11,32 +12,6 @@ const BLANK_INSPECTOR = {
 
 const BLANK_COOP = { name: '', island: '', contactName: '', contactPhone: '' };
 
-const KIRIBATI_ISLANDS = [
-  'Betio Town',
-  'Bairiki (Teinainano Urban)',
-  'Eutan Tarawa',
-  'Abaiang',
-  'Abemama',
-  'Aranuka',
-  'Arorae',
-  'Banaba (Ocean Island)',
-  'Beru',
-  'Butaritari',
-  'Kiritimati (Christmas Island)',
-  'Kuria',
-  'Maiana',
-  'Makin',
-  'Marakei',
-  'Nikunau',
-  'Nonouti',
-  'Onotoa',
-  'Tabiteuea North',
-  'Tabiteuea South',
-  'Tabuaeran (Fanning Island)',
-  'Tamana',
-  'Tarawa',
-  'Teraina (Washington Island)',
-];
 
 function codeFromName(name) {
   if (!name) return '';
