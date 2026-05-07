@@ -1,7 +1,8 @@
 // src/sections/ReportsCentre.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, sumField, groupBy, csvExport } from '../utils/helpers';
 
 const REPORT_TYPES = [
@@ -353,11 +354,7 @@ function StockReport({ stock }) {
    Main Reports Centre component
 ═══════════════════════════════════════════════════════════════ */
 export default function ReportsCentre({ initialReport, reportsBackRef }) {
-  const [cprs,    setCprs]    = useState([]);
-  const [twcs,    setTwcs]    = useState([]);
-  const [stock,   setStock]   = useState([]);
-  const [farmers, setFarmers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { cprEntries: cprs, twcEntries: twcs, stock, farmers, loading } = useAppData();
 
   const [view,       setView]       = useState(() => initialReport ? 'detail' : 'list');
   const [selected,   setSelected]   = useState(() => initialReport || null);
@@ -392,13 +389,7 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
     return () => window.removeEventListener('popstate', onPop);
   }, [view]);
 
-  useEffect(() => {
-    const u1 = onSnapshot(collection(db, 'cprEntries'),  s => setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u2 = onSnapshot(collection(db, 'twcEntries'),  s => setTwcs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u3 = onSnapshot(collection(db, 'shedStock'),   s => { setStock(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); });
-    const u4 = onSnapshot(collection(db, 'farmers'),     s => setFarmers(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
-  }, []);
+
 
   // Derive all known islands from data
   const allIslands = useMemo(() => {
