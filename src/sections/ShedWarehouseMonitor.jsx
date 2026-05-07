@@ -15,12 +15,6 @@ export default function ShedWarehouseMonitor() {
   const [station,  setStation]  = useState('');
   const [detail,   setDetail]   = useState(null);
 
-  useEffect(() => {
-    return(collection(db, 'shedStock'), snap => {
-      setStock(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, []);
 
   const stations = useMemo(() => [...new Set(stock.map(s => s.stationId).filter(Boolean))].sort(), [stock]);
 
