@@ -2,15 +2,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 const BLANK = { name: '', region: '', notes: '' };
 
 export default function IslandsManager() {
+  const { cprEntries: cprs, villages, cooperatives: coops } = useAppData();
   const [firestoreIslands, setFirestoreIslands] = useState([]);
-  const [cprs,             setCprs]             = useState([]);
-  const [villages,         setVillages]         = useState([]);
-  const [coops,            setCoops]            = useState([]);
   const [loading,          setLoading]          = useState(true);
   const [modal,            setModal]            = useState(null);   // null | 'add' | island-obj
   const [viewIsland,       setViewIsland]       = useState(null);   // { name, region, notes, id? }
@@ -33,13 +33,8 @@ export default function IslandsManager() {
         addDoc(collection(db, 'islands'), { name, region: '', notes: '', createdAt: new Date().toISOString() });
       });
     });
-    const u2 = onSnapshot(collection(db, 'cprEntries'), s =>
       setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u3 = onSnapshot(collection(db, 'villages'), s =>
-      setVillages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u4 = onSnapshot(collection(db, 'cooperatives'), s =>
-      setCoops(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); u4(); };
+    return () => { u1(); u2(); };
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
@@ -224,12 +219,10 @@ export default function IslandsManager() {
                 </div>
 
                 {[
-                  ['📋 CPRs Filed',       ilCprs.length],
-                  ['⚖️ Total Weight',     `${totalWeight} t`],
-                  ['🗺️ Region',           il.region || '—'],
-                  ['🏘️ Villages',         villages.filter(v => v.island === il.name).length || '—'],
-                  ['🤝 Cooperatives',     coops.filter(c => c.island === il.name).length || '—'],
-                  ['📝 Notes',            il.notes  || '—'],
+                  ['📋 CPRs Filed',   ilCprs.length],
+                  ['⚖️ Total Weight', `${totalWeight} t`],
+                  ['🗺️ Region',       il.region || '—'],
+                  ['📝 Notes',        il.notes  || '—'],
                 ].map(([label, value]) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-dim)', fontSize: '0.83rem', gap: 12 }}>
                     <span style={{ color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>{label}</span>
