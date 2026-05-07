@@ -1,24 +1,22 @@
 // src/sections/CPRMonitor.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+import { logAudit } from '../utils/auditLog';
 import { fmt, sumField, csvExport } from '../utils/helpers';
 
 export default function CPRMonitor() {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { cprEntries: entries, currentPrice, loading } = useAppData();
   const [search,  setSearch]  = useState('');
   const [island,  setIsland]  = useState('');
   const [dateFrom,setDateFrom]= useState('');
   const [dateTo,  setDateTo]  = useState('');
-  const [detail,  setDetail]  = useState(null);
+  const [detail,      setDetail]      = useState(null);
+  const [payModal,    setPayModal]    = useState(null);
+  const [payForm,     setPayForm]     = useState({ amount: '', date: '', notes: '' });
+  const [paying,      setPaying]      = useState(false);
 
-  useEffect(() => {
-    return onSnapshot(collection(db, 'cprEntries'), snap => {
-      setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, []);
 
   const islands = useMemo(() => [...new Set(entries.map(e => e.island).filter(Boolean))].sort(), [entries]);
 
@@ -69,12 +67,13 @@ export default function CPRMonitor() {
       </div>
 
       {/* Summary row */}
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 20 }}>
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(5,1fr)', marginBottom: 20 }}>
         {[
           { icon:'📋', val: entries.length, lbl:'Total CPRs', col:'var(--teal)' },
           { icon:'🔍', val: filtered.length, lbl:'Filtered Records', col:'var(--purple)' },
           { icon:'⚖️', val: fmt.kg(totalWeight), lbl:'Filtered Weight', col:'var(--gold)' },
           { icon:'🏝️', val: islands.length, lbl:'Islands', col:'var(--green)' },
+          { icon:'💰', val: entries.filter(e=>e.paymentStatus==='paid').length, lbl:'Paid Sessions', col:'var(--gold)' },
         ].map(s => (
           <div key={s.lbl} className="stat-card" style={{ '--accent-color': s.col }}>
             <div className="stat-icon">{s.icon}</div>
@@ -136,6 +135,11 @@ export default function CPRMonitor() {
                 <td className="tbl-mono">{fmt.time12(e.end_time)}</td>
                 <td className="tbl-mono" style={{ fontWeight: 700, color: 'var(--gold)' }}>
                   {e.total_weight_cpr ? (+e.total_weight_cpr).toLocaleString('en',{minimumFractionDigits:2}) : '—'}
+                </td>
+                <td>
+                  {e.paymentStatus === 'paid'
+                    ? <span className="tbl-badge badge-green" style={{fontSize:'0.68rem'}}>✅ Paid</span>
+                    : <span className="tbl-badge" style={{fontSize:'0.68rem',opacity:0.6}}>Unpaid</span>}
                 </td>
                 <td>
                   <button className="btn btn-ghost btn-sm" onClick={() => setDetail(e)} type="button">View</button>
@@ -210,6 +214,75 @@ export default function CPRMonitor() {
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setDetail(null)} type="button">Close</button>
+              {detail.paymentStatus !== 'paid' && (
+                <button className="btn btn-primary btn-sm" type="button"
+                  onClick={() => { setPayModal(detail); setPayForm({ amount: currentPrice ? (parseFloat(detail.total_weight_cpr||0)*currentPrice.pricePerKg).toFixed(2) : '', date: new Date().toISOString().slice(0,10), notes: '' }); }}>
+                  💰 Record Payment
+                </button>
+              )}
+              {detail.paymentStatus === 'paid' && (
+                <div style={{fontSize:'0.78rem',color:'var(--green)',fontWeight:600}}>✅ Paid on {detail.paymentDate || '—'}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+      {/* ══ RECORD PAYMENT MODAL ══ */}
+      {payModal && (
+        <div className="modal-overlay" onClick={() => setPayModal(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <div className="modal-head">
+              <div className="modal-title">💰 Record Payment — CPR #{payModal.cpr_number}</div>
+              <button className="modal-close" onClick={() => setPayModal(null)} type="button">✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label className="form-label">Payment Amount
+                  {currentPrice && <span style={{fontWeight:400,color:'var(--text-muted)',marginLeft:6,fontSize:'0.7rem'}}>
+                    @ {currentPrice.pricePerKg} {currentPrice.currency}/kg
+                  </span>}
+                </label>
+                <input className="form-input" type="number" step="0.01"
+                  value={payForm.amount}
+                  onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="0.00" />
+              </div>
+              <div className="form-group" style={{ marginBottom: 14 }}>
+                <label className="form-label">Payment Date</label>
+                <input className="form-input" type="date" value={payForm.date}
+                  onChange={e => setPayForm(f => ({ ...f, date: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Notes</label>
+                <input className="form-input" value={payForm.notes}
+                  onChange={e => setPayForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Optional payment reference" />
+              </div>
+            </div>
+            <div className="modal-foot">
+              <button className="btn btn-ghost" onClick={() => setPayModal(null)} type="button">Cancel</button>
+              <button className="btn btn-primary" disabled={paying} type="button"
+                onClick={async () => {
+                  if (!payForm.amount) return;
+                  setPaying(true);
+                  try {
+                    await updateDoc(doc(db, 'cprEntries', payModal.id), {
+                      paymentStatus: 'paid',
+                      paymentAmount: parseFloat(payForm.amount),
+                      paymentDate:   payForm.date,
+                      paymentNotes:  payForm.notes,
+                      paymentRecordedAt: new Date().toISOString(),
+                    });
+                    setPayModal(null);
+                    setDetail(null);
+                  } catch(e) { alert('Error: ' + e.message); }
+                  finally { setPaying(false); }
+                }}>
+                {paying ? '…Saving' : '✓ Confirm Payment'}
+              </button>
             </div>
           </div>
         </div>
