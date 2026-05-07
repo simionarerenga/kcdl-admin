@@ -1,21 +1,22 @@
 // src/sections/ShedWarehouseMonitor.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, sumField, STATUS_LABELS, STATUS_BADGE, csvExport } from '../utils/helpers';
 
 const STATUSES = ['recently_weighed','in_warehouse','ready_to_ship','shipped'];
 
-export default function ShedWarehouseMonitor({ onNavigate }) {
-  const [stock,    setStock]    = useState([]);
-  const [loading,  setLoading]  = useState(true);
+export default function ShedWarehouseMonitor() {
+  const { stock, loading } = useAppData();
   const [tab,      setTab]      = useState('all');
   const [search,   setSearch]   = useState('');
   const [station,  setStation]  = useState('');
   const [detail,   setDetail]   = useState(null);
 
   useEffect(() => {
-    return onSnapshot(collection(db, 'shedStock'), snap => {
+    return(collection(db, 'shedStock'), snap => {
       setStock(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
@@ -228,12 +229,6 @@ export default function ShedWarehouseMonitor({ onNavigate }) {
             </div>
             <div className="modal-foot">
               <button className="btn btn-ghost" onClick={() => setDetail(null)} type="button">Close</button>
-              {detail.status === 'ready_to_ship' && onNavigate && (
-                <button className="btn btn-primary btn-sm" type="button"
-                  onClick={() => { setDetail(null); onNavigate('shipments'); }}>
-                  🛳️ View in Shipments →
-                </button>
-              )}
             </div>
           </div>
         </div>
