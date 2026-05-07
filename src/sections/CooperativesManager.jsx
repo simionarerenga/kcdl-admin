@@ -132,7 +132,6 @@ export default function CooperativesManager() {
       setLoading(false);
     });
       setVillages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-      setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => u1();
   }, []);
 
