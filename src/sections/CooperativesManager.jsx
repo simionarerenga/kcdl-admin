@@ -2,6 +2,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 function codeFromName(name) {
@@ -112,9 +114,8 @@ function CoopSearchSelect({ coops, value, onChange, placeholder = '— Search Co
 
 /* ── Main Component ─────────────────────────────────────────────────────── */
 export default function CooperativesManager() {
+  const { villages, cprEntries: cprs } = useAppData();
   const [coops,     setCoops]     = useState([]);
-  const [villages,  setVillages]  = useState([]);
-  const [cprs,      setCprs]      = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [modal,     setModal]     = useState(null);
   const [viewCoop,  setViewCoop]  = useState(null);
@@ -130,11 +131,9 @@ export default function CooperativesManager() {
       setCoops(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-    const u2 = onSnapshot(collection(db, 'villages'), s =>
       setVillages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    const u3 = onSnapshot(collection(db, 'cprEntries'), s =>
       setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); u3(); };
+    return () => u1();
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
@@ -350,7 +349,7 @@ export default function CooperativesManager() {
               <div className="form-group" style={{ marginBottom: 14 }}>
                 <label className="form-label">Island *</label>
                 <select className="form-select" value={form.island}
-                  onChange={e => setField('village', '') || setField('island', e.target.value)}
+                  onChange={e => setField('island', e.target.value)}
                   style={!form.island ? { color: 'var(--text-muted)', fontStyle: 'italic' } : {}}>
                   <option value="" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>— Select Island —</option>
                   {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl} style={{ color: 'inherit', fontStyle: 'normal' }}>{isl}</option>)}
