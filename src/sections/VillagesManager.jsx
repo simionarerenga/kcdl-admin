@@ -21,7 +21,6 @@ export default function VillagesManager() {
 
   useEffect(() => {
     const u1 =(collection(db, 'villages'), s => {
-      setVillages(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
     return () => u1();
