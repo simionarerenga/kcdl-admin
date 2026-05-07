@@ -366,6 +366,7 @@ export default function App() {
         <SectionComp
           onNavigate={navigate}
           user={user}
+          currentUser={user}
           profile={profile}
           dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
           initialReport={section === 'reports' ? reportInit : undefined}
