@@ -2,26 +2,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, sumField, csvExport } from '../utils/helpers';
 
 export default function ShipmentsMonitor() {
-  const [stock,     setStock]     = useState([]);
-  const [shipments, setShipments] = useState([]);
-  const [loading,   setLoading]   = useState(true);
+  const { stock, shipments, loading } = useAppData();
   const [tab,       setTab]       = useState('ready');
   const [search,    setSearch]    = useState('');
   const [station,   setStation]   = useState('');
 
-  useEffect(() => {
-    const u1 = onSnapshot(collection(db, 'shedStock'), s => {
-      setStock(s.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    const u2 = onSnapshot(collection(db, 'shipments'), s => {
-      setShipments(s.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-    return () => { u1(); u2(); };
-  }, []);
 
   const readyToShip  = stock.filter(s => s.status === 'ready_to_ship');
   const shipped      = stock.filter(s => s.status === 'shipped');
