@@ -33,8 +33,7 @@ export default function IslandsManager() {
         addDoc(collection(db, 'islands'), { name, region: '', notes: '', createdAt: new Date().toISOString() });
       });
     });
-      setCprs(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { u1(); u2(); };
+    return () => u1();
   }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
