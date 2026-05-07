@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { AppDataProvider } from './context/AppDataContext';
 
 import TopBar               from './components/TopBar';
 import LoginScreen          from './sections/LoginScreen';
@@ -15,12 +16,11 @@ import ShipmentsMonitor     from './sections/ShipmentsMonitor';
 import FarmersMonitor       from './sections/FarmersMonitor';
 import ReportsCentre        from './sections/ReportsCentre';
 import Analytics            from './sections/Analytics';
-import StationsManager      from './sections/StationsManager';
 import IslandsManager       from './sections/IslandsManager';
 import VillagesManager      from './sections/VillagesManager';
 import CooperativesManager  from './sections/CooperativesManager';
-import AuditLog             from './sections/AuditLog';
 import UserManagement       from './sections/UserManagement';
+import AuditLog             from './sections/AuditLog';
 import SettingsSection      from './sections/SettingsSection';
 
 export const SECTIONS = [
@@ -56,7 +56,7 @@ export const SECTIONS = [
       { id: 'cooperatives',  icon: '🤝', label: 'Cooperatives',   desc: 'Cooperative registry per island' },
       { id: 'users',       icon: '👤', label: 'User Management', desc: 'Inspector accounts & access roles' },
       { id: 'audit_log',   icon: '📋', label: 'Audit Log',        desc: 'History of all admin actions' },
-      { id: 'settings', icon: '⚙️', label: 'Settings',        desc: 'System info & account details' },
+      { id: 'settings',    icon: '⚙️', label: 'Settings',         desc: 'System info, pricing & account details' },
     ],
   },
 ];
@@ -76,7 +76,7 @@ const SECTION_MAP = {
   cooperatives:  CooperativesManager,
   users:         UserManagement,
   audit_log:     AuditLog,
-  settings:  SettingsSection,
+  settings:      SettingsSection,
 };
 
 export const SECTION_LABEL = {};
@@ -332,6 +332,7 @@ export default function App() {
   const sectionMeta = SECTION_LABEL[section] || null;
 
   return (
+    <AppDataProvider>
     <div className="app-shell">
       {showExit && (
         <ExitModal
@@ -366,7 +367,6 @@ export default function App() {
           onNavigate={navigate}
           user={user}
           profile={profile}
-          currentUser={user}
           dashBackRef={section === 'dashboard' ? dashBackRef : undefined}
           initialReport={section === 'reports' ? reportInit : undefined}
           reportsBackRef={section === 'reports'   ? reportsBackRef   : undefined}
@@ -374,5 +374,6 @@ export default function App() {
         />
       </div>
     </div>
+    </AppDataProvider>
   );
 }
