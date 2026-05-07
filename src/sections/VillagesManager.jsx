@@ -1,14 +1,15 @@
 // src/sections/VillagesManager.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { KIRIBATI_ISLANDS } from '../utils/constants';
 
 const BLANK = { name: '', island: '', notes: '' };
 
 export default function VillagesManager() {
-  const [villages,   setVillages]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const { villages, loading } = useAppData();
   const [modal,      setModal]      = useState(null);   // null | 'add' | village-obj
   const [viewVillage,setViewVillage]= useState(null);
   const [form,       setForm]       = useState(BLANK);
@@ -19,7 +20,7 @@ export default function VillagesManager() {
   const [confirmDel, setConfirmDel] = useState(null);
 
   useEffect(() => {
-    const u1 = onSnapshot(collection(db, 'villages'), s => {
+    const u1 =(collection(db, 'villages'), s => {
       setVillages(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
