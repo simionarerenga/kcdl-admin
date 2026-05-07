@@ -1,7 +1,9 @@
 // src/sections/Analytics.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, sumField, groupBy } from '../utils/helpers';
 
 const PALETTE = ['#007c91','#e8a000','#8b5cf6','#22c55e','#ef4444','#f59e0b','#00a5bf','#6366f1'];
@@ -345,16 +347,13 @@ const NAV_BUTTONS = [
 ];
 
 export default function Analytics({ analyticsBackRef }) {
-  const [cprs,    setCprs]    = useState([]);
-  const [twcs,    setTwcs]    = useState([]);
-  const [stock,   setStock]   = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { cprEntries: cprs, twcEntries: twcs, stock, loading } = useAppData();
   const [detail,  setDetail]  = useState(null);
 
   useEffect(() => {
-    const u1 = onSnapshot(collection(db,'cprEntries'),  s => setCprs(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u2 = onSnapshot(collection(db,'twcEntries'),  s => setTwcs(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u3 = onSnapshot(collection(db,'shedStock'),   s => { setStock(s.docs.map(d=>({id:d.id,...d.data()}))); setLoading(false); });
+    const u1 =(collection(db,'cprEntries'),  s => setCprs(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u2 =(collection(db,'twcEntries'),  s => setTwcs(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u3 =(collection(db,'shedStock'),   s => { setStock(s.docs.map(d=>({id:d.id,...d.data()}))); setLoading(false); });
     return () => { u1(); u2(); u3(); };
   }, []);
 
