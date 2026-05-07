@@ -227,8 +227,6 @@ export default function CPRMonitor() {
           </div>
         </div>
       )}
-    </div>
-  );
 
       {/* ══ RECORD PAYMENT MODAL ══ */}
       {payModal && (
