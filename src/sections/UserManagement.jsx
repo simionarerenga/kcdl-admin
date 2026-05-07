@@ -37,9 +37,8 @@ function ConfirmModal({ title, body, confirmLabel = 'Remove', onCancel, onConfir
 
 export default function UserManagement() {
   const { users, cooperatives: coops, cprEntries: cprs, loading } = useAppData();
-  const [coops,       setCoops]      = useState([]);   // Firestore 'cooperatives'
 
-  // Modal state: null | 'inspector' | 'coop'
+  // Modal state: null | 'inspector'
   const [modalType, setModalType] = useState(null); // null | 'inspector'
   const [editTarget,  setEditTarget] = useState(null); // existing doc being edited
   const [inspForm,    setInspForm]   = useState(BLANK_INSPECTOR);
@@ -401,66 +400,6 @@ export default function UserManagement() {
               <button className="btn btn-ghost" onClick={closeModal} type="button">Cancel</button>
               <button className="btn btn-primary" onClick={saveInspector} disabled={saving} type="button">
                 {saving ? '…Saving' : !editTarget ? '✓ Add Inspector' : '✓ Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════ ADD COOPERATIVE MODAL ══════════════ */}
-      {modalType === 'coop' && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-head">
-              <div className="modal-title">🤝 Add Cooperative</div>
-              <button className="modal-close" onClick={closeModal} type="button">✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label className="form-label">Island *</label>
-                <select className="form-select"
-                  value={coopForm.island}
-                  onChange={e => setCoopForm(f => ({ ...f, island: e.target.value }))}>
-                  <option value="">— Select Island —</option>
-                  {KIRIBATI_ISLANDS.map(isl => <option key={isl} value={isl}>{isl}</option>)}
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom: 14 }}>
-                <label className="form-label">Cooperative Name *</label>
-                <input className="form-input"
-                  value={coopForm.name}
-                  onChange={e => setCoopForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Tabiteuea North Cooperative"
-                />
-                {coopForm.name && (
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                    Auto code: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--teal)' }}>{codeFromName(coopForm.name)}</strong>
-                  </div>
-                )}
-              </div>
-              <div className="form-row form-row-2">
-                <div className="form-group">
-                  <label className="form-label">Contact Name</label>
-                  <input className="form-input"
-                    value={coopForm.contactName}
-                    onChange={e => setCoopForm(f => ({ ...f, contactName: e.target.value }))}
-                    placeholder="Full name"
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Contact Phone</label>
-                  <input className="form-input"
-                    value={coopForm.contactPhone}
-                    onChange={e => setCoopForm(f => ({ ...f, contactPhone: e.target.value }))}
-                    placeholder="+686 730 xxxxx"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-foot">
-              <button className="btn btn-ghost" onClick={closeModal} type="button">Cancel</button>
-              <button className="btn btn-primary" onClick={saveCoop} disabled={saving} type="button">
-                {saving ? '…Saving' : '✓ Add Cooperative'}
               </button>
             </div>
           </div>

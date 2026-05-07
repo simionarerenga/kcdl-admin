@@ -1135,9 +1135,8 @@ function GenerateReportMenu({ onNavigate }) {
 ═══════════════════════════════════════════════════════ */
 export default function Dashboard({ onNavigate, dashBackRef }) {
   const { cprEntries: cprList, twcEntries: twcList, stock, farmers, users: allUsers, loading } = useAppData();
-  const inspectors = allUsers.filter(u => u.stationId || u.role === "inspector");
-  const [inspectors,  setInspectors]  = useState([]);
-  const [detail,      setDetail]      = useState(null); // which card is open
+  const inspectors = allUsers.filter(u => u.stationId || u.role === 'inspector');
+  const [detail, setDetail] = useState(null); // which card is open
 
   // Keep hardware back button coordinated with App's handler
   useEffect(() => {

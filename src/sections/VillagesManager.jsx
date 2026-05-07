@@ -1,5 +1,5 @@
 // src/sections/VillagesManager.jsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { collection, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAppData } from '../context/AppDataContext';
@@ -18,13 +18,6 @@ export default function VillagesManager() {
   const [search,     setSearch]     = useState('');
   const [filterIsland, setFilterIsland] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
-
-  useEffect(() => {
-    const u1 =(collection(db, 'villages'), s => {
-      setLoading(false);
-    });
-    return () => u1();
-  }, []);
 
   const flash = m => { setMsg(m); setTimeout(() => setMsg(''), 4000); };
 
