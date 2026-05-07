@@ -131,7 +131,6 @@ export default function CooperativesManager() {
       setCoops(s.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-      setVillages(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => u1();
   }, []);
 
