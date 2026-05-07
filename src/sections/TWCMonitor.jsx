@@ -1,12 +1,13 @@
 // src/sections/TWCMonitor.jsx
 import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, sumField, csvExport } from '../utils/helpers';
 
 export default function TWCMonitor() {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { twcEntries: entries, loading } = useAppData();
   const [search,  setSearch]  = useState('');
   const [island,  setIsland]  = useState('');
   const [vessel,  setVessel]  = useState('');
@@ -15,7 +16,7 @@ export default function TWCMonitor() {
   const [detail,  setDetail]  = useState(null);
 
   useEffect(() => {
-    return onSnapshot(collection(db, 'twcEntries'), snap => {
+    return(collection(db, 'twcEntries'), snap => {
       setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
