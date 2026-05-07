@@ -86,12 +86,6 @@ export default function FarmersMonitor() {
   const [station, setStation] = useState('');
   const [detail,  setDetail]  = useState(null);
 
-  useEffect(() => {
-    return(collection(db, 'farmers'), snap => {
-      setFarmers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, []);
 
   /* ── Derived filter options ── */
   const allIslands = useMemo(() =>
