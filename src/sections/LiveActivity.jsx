@@ -1,7 +1,9 @@
 // src/sections/LiveActivity.jsx
 import { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt } from '../utils/helpers';
 
 const COLORS = {
@@ -59,23 +61,11 @@ function buildFeed(cprs, twcs, stocks, farmers) {
 }
 
 export default function LiveActivity() {
-  const [cprs,    setCprs]    = useState([]);
-  const [twcs,    setTwcs]    = useState([]);
-  const [stocks,  setStocks]  = useState([]);
-  const [farmers, setFarmers] = useState([]);
+  const { cprEntries: cprs, twcEntries: twcs, stock: stocks, farmers, loading } = useAppData();
   const [filter,  setFilter]  = useState('all');
-  const [loading, setLoading] = useState(true);
   const [newCount, setNewCount] = useState(0);
   const prevFeedLen = useRef(0);
 
-  useEffect(() => {
-    const unsubs = [];
-    unsubs.push(onSnapshot(collection(db, 'cprEntries'),  s => setCprs(s.docs.map(d => ({ id: d.id, ...d.data() })))));
-    unsubs.push(onSnapshot(collection(db, 'twcEntries'),  s => setTwcs(s.docs.map(d => ({ id: d.id, ...d.data() })))));
-    unsubs.push(onSnapshot(collection(db, 'shedStock'),   s => { setStocks(s.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false); }));
-    unsubs.push(onSnapshot(collection(db, 'farmers'),     s => setFarmers(s.docs.map(d => ({ id: d.id, ...d.data() })))));
-    return () => unsubs.forEach(u => u());
-  }, []);
 
   const allFeed = buildFeed(cprs, twcs, stocks, farmers);
 
