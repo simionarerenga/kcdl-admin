@@ -1,7 +1,9 @@
 // src/sections/FarmersMonitor.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useAppData } from '../context/AppDataContext';
+
 import { fmt, csvExport } from '../utils/helpers';
 
 /* ─── Reusable dropdown button ───────────────────────── */
@@ -78,15 +80,14 @@ function FilterDropdown({ value, options, placeholder, onChange, disabled }) {
    FARMERS MONITOR
 ═══════════════════════════════════════════════════════ */
 export default function FarmersMonitor() {
-  const [farmers, setFarmers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { farmers, loading } = useAppData();
   const [search,  setSearch]  = useState('');
   const [island,  setIsland]  = useState('');
   const [station, setStation] = useState('');
   const [detail,  setDetail]  = useState(null);
 
   useEffect(() => {
-    return onSnapshot(collection(db, 'farmers'), snap => {
+    return(collection(db, 'farmers'), snap => {
       setFarmers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
