@@ -350,12 +350,6 @@ export default function Analytics({ analyticsBackRef }) {
   const { cprEntries: cprs, twcEntries: twcs, stock, loading } = useAppData();
   const [detail,  setDetail]  = useState(null);
 
-  useEffect(() => {
-    const u1 =(collection(db,'cprEntries'),  s => setCprs(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u2 =(collection(db,'twcEntries'),  s => setTwcs(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const u3 =(collection(db,'shedStock'),   s => { setStock(s.docs.map(d=>({id:d.id,...d.data()}))); setLoading(false); });
-    return () => { u1(); u2(); u3(); };
-  }, []);
 
   // Register back-callback for App-level hardware back button
   useEffect(() => {
