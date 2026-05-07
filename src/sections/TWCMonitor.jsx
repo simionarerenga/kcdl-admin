@@ -15,12 +15,6 @@ export default function TWCMonitor() {
   const [dateTo,  setDateTo]  = useState('');
   const [detail,  setDetail]  = useState(null);
 
-  useEffect(() => {
-    return(collection(db, 'twcEntries'), snap => {
-      setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-  }, []);
 
   const islands = useMemo(() => [...new Set(entries.map(e => e.island).filter(Boolean))].sort(), [entries]);
   const vessels = useMemo(() => [...new Set(entries.map(e => e.vessel_name).filter(Boolean))].sort(), [entries]);
