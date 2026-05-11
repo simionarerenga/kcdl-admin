@@ -61,7 +61,7 @@ export default function ShedWarehouseMonitor() {
       <div className="page-header">
         <div>
           <div className="page-title">⚖️ Warehouse Monitor</div>
-          <div className="page-subtitle">All bag inventory across all outer island villages</div>
+          <div className="page-subtitle">All bag inventory across all outer island warehouses</div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleExport} type="button">⬇ Export CSV</button>
       </div>
@@ -105,7 +105,7 @@ export default function ShedWarehouseMonitor() {
             onChange={e => setSearch(e.target.value)} />
         </div>
         <select className="form-select" style={{ width: 190 }} value={station} onChange={e => setStation(e.target.value)}>
-          <option value="">All Villages</option>
+          <option value="">All Warehouses</option>
           {stations.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {(search||station) && (
@@ -125,7 +125,7 @@ export default function ShedWarehouseMonitor() {
               <th>Status</th>
               <th>Farmer</th>
               <th>Farmer ID</th>
-              <th>Village</th>
+              <th>Warehouse</th>
               <th>Weight (kg)</th>
               <th>Pre-Ship (kg)</th>
               <th>Weighed At</th>

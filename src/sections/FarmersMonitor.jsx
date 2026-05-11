@@ -152,7 +152,7 @@ export default function FarmersMonitor() {
       <div className="page-header">
         <div>
           <div className="page-title">👩‍🌾 Farmers Registry</div>
-          <div className="page-subtitle">All registered copra farmers across all stations</div>
+          <div className="page-subtitle">All registered copra farmers across all warehouses</div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={handleExport} type="button">⬇ Export CSV</button>
       </div>
@@ -162,7 +162,7 @@ export default function FarmersMonitor() {
         {[
           { icon: '👥', val: farmers.length, lbl: 'Total Farmers', col: 'var(--teal)'  },
           { icon: '🏝️', val: totalIslands,   lbl: 'Islands',       col: 'var(--gold)'  },
-          { icon: '📍', val: totalStations,  lbl: 'Stations',      col: 'var(--green)' },
+          { icon: '📍', val: totalStations,  lbl: 'Warehouses',      col: 'var(--green)' },
         ].map(s => (
           <div key={s.lbl} className="stat-card" style={{ '--accent-color': s.col }}>
             <div className="stat-icon">{s.icon}</div>
@@ -176,7 +176,7 @@ export default function FarmersMonitor() {
       <div className="toolbar">
         <div className="search-bar">
           <input
-            placeholder="Search name, ID, village, phone…"
+            placeholder="Search name, ID, warehouse, phone…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -194,7 +194,7 @@ export default function FarmersMonitor() {
         <FilterDropdown
           value={station}
           options={availableStations}
-          placeholder="All Stations"
+          placeholder="All Warehouses"
           onChange={val => setStation(val)}
           disabled={availableStations.length === 0}
         />
@@ -220,11 +220,11 @@ export default function FarmersMonitor() {
           <thead>
             <tr>
               <th>Island</th>
-              <th>Station</th>
+              <th>Warehouse</th>
               <th>Farmer ID</th>
               <th>Full Name</th>
               <th>Card</th>
-              <th>Village</th>
+              <th>Settlement</th>
               <th>Gender</th>
               <th>Phone</th>
               <th>WhatsApp</th>
@@ -293,9 +293,9 @@ export default function FarmersMonitor() {
               <div className="form-row form-row-2">
                 {[
                   ['Island',     detail.island],
-                  ['Station',    detail.stationId],
+                  ['Warehouse',    detail.stationId],
                   ['ID Card',    detail.idCard],
-                  ['Village',    detail.village],
+                  ['Settlement', detail.village],
                   ['Gender',     detail.gender],
                   ['Phone',      detail.phone],
                   ['WhatsApp',   detail.whatsapp],

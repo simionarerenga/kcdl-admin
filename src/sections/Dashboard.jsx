@@ -356,7 +356,7 @@ function DetailCPRWeight({ cprList, onBack }) {
             <tr>
               <th>#</th>
               <th>Island</th>
-              <th>Village</th>
+              <th>Warehouse</th>
               <th>Cooperative</th>
               <th style={{ textAlign: 'right' }}>CPR Sessions</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
@@ -514,6 +514,9 @@ function DetailInspectors({ inspectors, onBack }) {
         || (u.cooperative     || '').toLowerCase().includes(q)
         || (u.cooperativeName || '').toLowerCase().includes(q)
         || (u.village         || '').toLowerCase().includes(q)
+        || (u.warehouses || []).some(w =>
+            (w.island  || '').toLowerCase().includes(q) ||
+            (w.village || '').toLowerCase().includes(q))
         || (u.phone           || '').includes(q))
       .sort((a, b) => (a.island || '').localeCompare(b.island || ''));
   }, [inspectors, search]);
@@ -524,7 +527,7 @@ function DetailInspectors({ inspectors, onBack }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 10, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>Inspector Accounts</div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} inspectors with assigned villages</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} inspectors with assigned warehouses</div>
         </div>
         <div className="search-bar" style={{ maxWidth: 240 }}>
           <input
@@ -544,9 +547,8 @@ function DetailInspectors({ inspectors, onBack }) {
               <th>Cooperative Assigned to</th>
               <th>Phone</th>
               <th>Email</th>
-              <th>Village</th>
+              <th>Warehouses</th>
               <th>Role</th>
-              <th>Village</th>
             </tr>
           </thead>
           <tbody>
@@ -567,7 +569,21 @@ function DetailInspectors({ inspectors, onBack }) {
                     {u.role || 'inspector'}
                   </span>
                 </td>
-                <td>{u.village || '—'}</td>
+                <td>
+                  {(() => {
+                    const whs = u.warehouses?.length
+                      ? u.warehouses
+                      : u.island ? [{ island: u.island, village: u.stationId || '' }] : [];
+                    return whs.length === 0
+                      ? <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      : whs.map((w, i) => (
+                          <div key={i} style={{ fontSize: '0.78rem', lineHeight: 1.6 }}>
+                            <span style={{ fontWeight: 700, color: 'var(--teal)' }}>{w.island}</span>
+                            {w.village && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>→ {w.village}</span>}
+                          </div>
+                        ));
+                  })()}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
@@ -659,7 +675,7 @@ function DetailBagsInStorage({ stock, onBack }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <select className="form-select" style={{ width: 160 }}
             value={stationFilter} onChange={e => setStationFilter(e.target.value)}>
-            <option value="">All Stations</option>
+            <option value="">All Warehouses</option>
             {stations.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <button className="btn btn-sm btn-primary"   type="button" onClick={() => setShowRegister(true)}>📋 Register</button>
@@ -671,7 +687,7 @@ function DetailBagsInStorage({ stock, onBack }) {
         <table>
           <thead>
             <tr>
-              <th>Village</th>
+              <th>Warehouse</th>
               <th style={thStyle}>Total Bags</th>
               <th style={thStyle}>Empty Bags at Shed</th>
               <th style={thStyle}>Empty Bags at Warehouse</th>
@@ -900,7 +916,7 @@ function DetailReadyToShip({ stock, onBack }) {
     ? `Bags at Warehouse of ${station} Station`
     : island
     ? `Bags at Warehouse — ${island} Island`
-    : 'Bags at Warehouse — by Station';
+    : 'Bags at Warehouse — by Warehouse';
 
   // Reset station if island changes and station no longer valid
   useEffect(() => {
@@ -924,7 +940,7 @@ function DetailReadyToShip({ stock, onBack }) {
           <select className="form-select" style={{ width: 150 }}
             value={station} onChange={e => setStation(e.target.value)}
             disabled={stationsForIsland.length === 0}>
-            <option value="">All Stations</option>
+            <option value="">All Warehouses</option>
             {stationsForIsland.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
@@ -935,7 +951,7 @@ function DetailReadyToShip({ stock, onBack }) {
             <tr>
               <th>#</th>
               <th>Island</th>
-              <th>Village</th>
+              <th>Warehouse</th>
               <th style={{ textAlign: 'right' }}>Bags</th>
               <th style={{ textAlign: 'right' }}>Total Weight</th>
             </tr>

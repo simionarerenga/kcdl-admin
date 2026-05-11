@@ -219,6 +219,7 @@ export default function IslandsManager() {
 
                 {[
                   ['📋 CPRs Filed',   ilCprs.length],
+                  ['🏭 Warehouses',    villages.filter(v => v.island === il.name).length],
                   ['⚖️ Total Weight', `${totalWeight} t`],
                   ['🗺️ Region',       il.region || '—'],
                   ['📝 Notes',        il.notes  || '—'],

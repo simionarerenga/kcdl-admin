@@ -98,12 +98,12 @@ export default function ShipmentsMonitor() {
 
       <div className="toolbar">
         <div className="search-bar">
-          <input placeholder={tab==='shipments'?'Search vessel, station…':'Search bag serial, farmer…'}
+          <input placeholder={tab==='shipments'?'Search vessel, warehouse…':'Search bag serial, farmer…'}
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         {tab !== 'shipments' && (
           <select className="form-select" style={{ width:190 }} value={station} onChange={e => setStation(e.target.value)}>
-            <option value="">All Stations</option>
+            <option value="">All Warehouses</option>
             {stations.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         )}
@@ -121,7 +121,7 @@ export default function ShipmentsMonitor() {
                 <th>Bag Serial</th>
                 <th>Farmer</th>
                 <th>Farmer ID</th>
-                <th>Station</th>
+                <th>Warehouse</th>
                 <th>Weight (kg)</th>
                 <th>Pre-Ship (kg)</th>
                 <th>Reweighed By</th>
@@ -174,7 +174,7 @@ export default function ShipmentsMonitor() {
               <tr>
                 <th>Date</th>
                 <th>Vessel</th>
-                <th>Station</th>
+                <th>Warehouse</th>
                 <th>Sacks</th>
                 <th>Weight (kg)</th>
                 <th>Status</th>

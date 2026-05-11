@@ -9,12 +9,12 @@ const REPORT_TYPES = [
   { id:'cpr_summary',        label:'CPR Summary Report',          icon:'📋', desc:'All CPR records grouped by island & cooperative' },
   { id:'twc_summary',        label:'TWC Summary Report',          icon:'🚢', desc:'TWC records by vessel and island' },
   { id:'island_summary',     label:'Island Production Report',    icon:'🏝️', desc:'Total weight and bags produced per island' },
-  { id:'village_report',     label:'Village Activity Report',     icon:'📡', desc:'Inspector activity per village' },
+  { id:'village_report',     label:'Warehouse Activity Report',   icon:'🏭', desc:'Copra activity per warehouse' },
   { id:'daily_report',       label:'Daily Operations Report',     icon:'📅', desc:'All activities for a selected date' },
   { id:'monthly_report',     label:'Monthly Summary Report',      icon:'📆', desc:'Month-by-month copra production totals' },
   { id:'farmer_report',      label:'Farmer Participation Report', icon:'👩‍🌾', desc:'Registered farmers and their weighing history' },
-  { id:'stock_report',       label:'Stock Status Report',         icon:'⚖️', desc:'Current bag inventory by stage and village' },
-  { id:'shipment_report',    label:'Shipment Manifest',           icon:'🛳️', desc:'Ready-to-ship bags for a specific village' },
+  { id:'stock_report',       label:'Stock Status Report',         icon:'⚖️', desc:'Current bag inventory by stage and warehouse' },
+  { id:'shipment_report',    label:'Shipment Manifest',           icon:'🛳️', desc:'Ready-to-ship bags for a specific warehouse' },
   { id:'cooperative_report', label:'Cooperative Report',          icon:'🤝', desc:'CPR and weight breakdown by cooperative' },
 ];
 
@@ -309,14 +309,14 @@ function StockReport({ stock }) {
   const byStation = groupBy(stock, 'stationId');
   return (
     <div>
-      <div className="report-section-title">Current Stock Status by Village</div>
+      <div className="report-section-title">Current Stock Status by Warehouse</div>
       {Object.entries(byStation).map(([stn, bags]) => {
         const statuses = { recently_weighed: [], in_shed: [], in_warehouse: [], ready_to_ship: [], shipped: [] };
         bags.forEach(b => { if (statuses[b.status]) statuses[b.status].push(b); });
         return (
           <div key={stn} style={{ marginBottom: 16 }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#007c91', background: '#f0f8fa', padding: '6px 10px', borderRadius: 4, marginBottom: 8 }}>
-              Village: {stn} — {bags.length} total bags
+              Warehouse: {stn} — {bags.length} total bags
             </div>
             <table className="report-table">
               <thead>
@@ -455,7 +455,7 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
           <div>
             <div className="report-section-title">Farmer Registry — {filtFarmers.length} registered farmers</div>
             <table className="report-table">
-              <thead><tr><th>Farmer ID</th><th>Name</th><th>ID Card</th><th>Village</th><th>Gender</th><th>Phone</th><th>Village</th></tr></thead>
+              <thead><tr><th>Farmer ID</th><th>Name</th><th>ID Card</th><th>Village</th><th>Gender</th><th>Phone</th><th>Warehouse</th></tr></thead>
               <tbody>
                 {[...filtFarmers].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(f => (
                   <tr key={f.id}>
@@ -475,7 +475,7 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
           <div>
             <div className="report-section-title">Village Activity Report</div>
             <table className="report-table">
-              <thead><tr><th>Village</th><th style={{ textAlign: 'right' }}>CPR Sessions</th><th style={{ textAlign: 'right' }}>Total Weight (kg)</th></tr></thead>
+              <thead><tr><th>Warehouse</th><th style={{ textAlign: 'right' }}>CPR Sessions</th><th style={{ textAlign: 'right' }}>Total Weight (kg)</th></tr></thead>
               <tbody>
                 {Object.entries(byStn).map(([stn, items]) => (
                   <tr key={stn}>
@@ -508,7 +508,7 @@ export default function ReportsCentre({ initialReport, reportsBackRef }) {
           <div>
             <div className="report-section-title">Shipment Manifest — {ready.length} bags · {fmt.kg(sumField(ready, 'stationWeight'))}</div>
             <table className="report-table">
-              <thead><tr><th>Bag Serial</th><th>Farmer</th><th>Farmer ID</th><th>Village</th><th style={{ textAlign: 'right' }}>Weight (kg)</th><th>Status</th></tr></thead>
+              <thead><tr><th>Bag Serial</th><th>Farmer</th><th>Farmer ID</th><th>Warehouse</th><th style={{ textAlign: 'right' }}>Weight (kg)</th><th>Status</th></tr></thead>
               <tbody>
                 {ready.map(b => (
                   <tr key={b.id}>
