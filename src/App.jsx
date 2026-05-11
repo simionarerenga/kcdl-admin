@@ -52,7 +52,7 @@ export const SECTIONS = [
     group: 'Admin',
     items: [
       { id: 'islands',       icon: '🏝️', label: 'Islands',        desc: 'Outer island registry & details' },
-      { id: 'villages',      icon: '🏘️', label: 'Villages',       desc: 'Village registry per island' },
+      { id: 'villages',      icon: '🏭', label: 'Warehouses',     desc: 'Warehouse registry per island' },
       { id: 'cooperatives',  icon: '🤝', label: 'Cooperatives',   desc: 'Cooperative registry per island' },
       { id: 'users',       icon: '👤', label: 'User Management', desc: 'Inspector accounts & access roles' },
       { id: 'audit_log',   icon: '📋', label: 'Audit Log',        desc: 'History of all admin actions' },
